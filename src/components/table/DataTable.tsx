@@ -60,6 +60,12 @@ export const DataTable: React.FC<{
   const paddingBottom = rowVirtualizer.getTotalSize() - (virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].end : 0);
 
   useEffect(() => {
+    // Reset scroll and virtualizer when filters change to avoid blank/placeholder rows
+    parentRef.current?.scrollTo({ top: 0 });
+    rowVirtualizer.scrollToIndex(0);
+  }, [filters, columnsList]);
+
+  useEffect(() => {
     const last = virtualItems[virtualItems.length - 1];
     if (!last) return;
     if (last.index >= rows.length - 1 && hasNextPage && !isFetching) {
@@ -99,14 +105,17 @@ export const DataTable: React.FC<{
           {paddingTop > 0 && <div style={{ height: paddingTop }} className="col-span-full" />}
 
           {virtualItems.map((vi) => {
-            const row = table.getRowModel().rows[vi.index];
-            if (!row) {
+            const isLoader = hasNextPage && vi.index === rows.length;
+            if (isLoader) {
               return (
                 <div key={`loader-${vi.index}`} className="col-span-full px-3 py-2 h-10 text-sm text-muted-foreground border-b">
                   Loading...
                 </div>
               );
             }
+            if (vi.index >= rows.length) return null;
+
+            const row = table.getRowModel().rows[vi.index];
             return (
               <div key={row.id} className="contents">
                 {row.getVisibleCells().map((cell) => (
