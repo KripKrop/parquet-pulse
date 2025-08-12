@@ -22,11 +22,11 @@ const Index = () => {
   const columns = colsData?.columns ?? [];
 
   return (
-    <main className="container mx-auto py-6">
+    <main className="container mx-auto py-6 animate-fade-in">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-4 space-y-6">
+        <aside className="lg:col-span-4 space-y-6 animate-fade-in">
           <UploadPanel onComplete={() => refetchCols()} />
-          <div className="border rounded-md p-4">
+          <div className="border rounded-md p-4 card-elevated">
             <FiltersPanel
               columns={columns}
               filters={filters}
@@ -36,12 +36,12 @@ const Index = () => {
             />
           </div>
         </aside>
-        <section className="lg:col-span-8 space-y-4">
+        <section className="lg:col-span-8 space-y-4 animate-fade-in">
           <div className="flex items-center justify-between">
-            <h1 className="text-xl font-semibold">Data</h1>
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient">CSV Viewer Data</h1>
             <div className="flex items-center gap-2">
               <DownloadCsv filters={filters} fields={columns} />
-              <Button variant="secondary" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Top</Button>
+              <Button variant="gradient" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Top</Button>
             </div>
           </div>
           <Separator />

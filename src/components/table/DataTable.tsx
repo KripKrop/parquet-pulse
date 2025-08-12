@@ -75,7 +75,7 @@ export const DataTable: React.FC<{
 
 
   return (
-    <div className="border rounded-md overflow-hidden">
+    <div className="border rounded-md overflow-hidden animate-fade-in card-elevated">
       <div ref={parentRef} className="max-h-[70vh] overflow-auto">
         <div className="sticky top-0 z-10 bg-background border-b">
           <div
@@ -121,7 +121,7 @@ export const DataTable: React.FC<{
                 {row.getVisibleCells().map((cell) => (
                   <div
                     key={cell.id}
-                    className="px-3 py-2 h-10 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis"
+                    className="px-3 py-2 h-10 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis transition-colors hover:bg-accent/30"
                     title={String((row as any).original[cell.column.id] ?? "")}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -135,7 +135,15 @@ export const DataTable: React.FC<{
         </div>
       </div>
       {rows.length === 0 && (
-        <div className="px-4 py-10 text-center text-muted-foreground">No rows match your filters.</div>
+        <div className="px-4 py-10 text-center text-muted-foreground space-y-3">
+          <img
+            src="/images/ui/empty-state.gif"
+            alt="No results animation"
+            className="mx-auto h-20 w-20 opacity-80"
+            loading="lazy"
+          />
+          <div className="text-sm">No rows match your filters.</div>
+        </div>
       )}
     </div>
   );
