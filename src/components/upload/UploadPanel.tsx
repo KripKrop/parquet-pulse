@@ -74,7 +74,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Upload CSV / Parquet</CardTitle>
+        <CardTitle>Upload CSV</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div
@@ -87,12 +87,12 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
           <input
             ref={inputRef}
             type="file"
-            accept=".csv,.parquet,application/csv,application/octet-stream"
+            accept=".csv,text/csv,application/csv"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && onDrop(e.target.files[0])}
           />
           <div className="text-sm text-muted-foreground">
-            {file ? `Selected: ${file.name}` : "Drop a CSV/Parquet file here, or click to browse"}
+            {file ? `Selected: ${file.name}` : "Drop a CSV file here, or click to browse"}
           </div>
         </div>
         <div className="flex items-center gap-2">

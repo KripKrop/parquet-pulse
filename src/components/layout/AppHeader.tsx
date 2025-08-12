@@ -6,7 +6,7 @@ const AppHeader = () => {
     <header className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex items-center justify-between py-3">
         <Link to="/" className="font-semibold tracking-tight story-link">
-          Universal CSV/Parquet Viewer
+          Crunch — Universal CSV Viewer
         </Link>
         <nav className="flex items-center gap-3">
           <NavLink

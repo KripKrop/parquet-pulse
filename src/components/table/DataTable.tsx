@@ -51,6 +51,7 @@ export const DataTable: React.FC<{
     count: rows.length + (hasNextPage ? 1 : 0),
     getScrollElement: () => parentRef.current,
     estimateSize: () => 36,
+    getItemKey: (index) => table.getRowModel().rows[index]?.id ?? `loader-${index}`,
     overscan: 10,
   });
 
@@ -62,33 +63,30 @@ export const DataTable: React.FC<{
     }
   }, [rowVirtualizer.getVirtualItems(), rows.length, hasNextPage, isFetching, fetchNextPage]);
 
-  useEffect(() => {
-    refetch();
-  }, [filters, refetch]);
 
   return (
     <div className="border rounded-md overflow-hidden">
-      <div className="sticky top-0 z-10 bg-background border-b">
-        <div className="grid" style={{ gridTemplateColumns: `repeat(${columnsList.length}, minmax(120px, 1fr))` }}>
-          {table.getHeaderGroups().map((hg) => (
-            <div key={hg.id} className="contents">
-              {hg.headers.map((h) => (
-                <div key={h.id} className="px-3 py-2 text-sm font-medium">
-                  {h.isPlaceholder ? null : h.column.columnDef.header as any}
-                </div>
-              ))}
-            </div>
-          ))}
-        </div>
-      </div>
       <div ref={parentRef} className="max-h-[70vh] overflow-auto">
+        <div className="sticky top-0 z-10 bg-background border-b">
+          <div className="grid" style={{ gridTemplateColumns: `repeat(${columnsList.length}, minmax(120px, 1fr))` }}>
+            {table.getHeaderGroups().map((hg) => (
+              <div key={hg.id} className="contents">
+                {hg.headers.map((h) => (
+                  <div key={h.id} className="px-3 py-2 h-10 text-sm font-medium whitespace-nowrap">
+                    {h.isPlaceholder ? null : (h.column.columnDef.header as any)}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
         <div
           className="relative"
-          style={{ height: `${rowVirtualizer.getTotalSize()}px` }}
+          style={{ height: `${rowVirtualizer.getTotalSize() + 40}px` }}
         >
           <div
-            className="absolute top-0 left-0 w-full grid"
-            style={{ transform: `translateY(${rowVirtualizer.getVirtualItems()[0]?.start ?? 0}px)`, gridTemplateColumns: `repeat(${columnsList.length}, minmax(120px, 1fr))` }}
+            className="absolute left-0 w-full grid transform-gpu"
+            style={{ top: 40, transform: `translateY(${rowVirtualizer.getVirtualItems()[0]?.start ?? 0}px)`, gridTemplateColumns: `repeat(${columnsList.length}, minmax(120px, 1fr))` }}
           >
             {rowVirtualizer.getVirtualItems().map((vi) => {
               const row = table.getRowModel().rows[vi.index];
@@ -102,7 +100,7 @@ export const DataTable: React.FC<{
               return (
                 <div key={row.id} className="contents">
                   {row.getVisibleCells().map((cell) => (
-                    <div key={cell.id} className="px-3 py-2 text-sm border-b">
+                    <div key={cell.id} className="px-3 py-2 h-9 text-sm border-b whitespace-nowrap truncate" title={String(cell.getValue() ?? "")}>
                       {cell.getValue() as any}
                     </div>
                   ))}

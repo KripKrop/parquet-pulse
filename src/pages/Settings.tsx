@@ -36,7 +36,7 @@ const Settings = () => {
 
   return (
     <main className="container mx-auto max-w-3xl py-6">
-      <h1 className="sr-only">Settings - Universal CSV/Parquet Viewer</h1>
+      <h1 className="sr-only">Settings - Crunch</h1>
       <Card>
         <CardHeader>
           <CardTitle>Settings</CardTitle>
