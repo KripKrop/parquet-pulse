@@ -50,29 +50,40 @@ export const DataTable: React.FC<{
   const rowVirtualizer = useVirtualizer({
     count: rows.length + (hasNextPage ? 1 : 0),
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 36,
+    estimateSize: () => 40,
     getItemKey: (index) => table.getRowModel().rows[index]?.id ?? `loader-${index}`,
     overscan: 10,
   });
 
+  const virtualItems = rowVirtualizer.getVirtualItems();
+  const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;
+  const paddingBottom = rowVirtualizer.getTotalSize() - (virtualItems.length > 0 ? virtualItems[virtualItems.length - 1].end : 0);
+
   useEffect(() => {
-    const [last] = [...rowVirtualizer.getVirtualItems()].slice(-1);
+    const last = virtualItems[virtualItems.length - 1];
     if (!last) return;
     if (last.index >= rows.length - 1 && hasNextPage && !isFetching) {
       fetchNextPage();
     }
-  }, [rowVirtualizer.getVirtualItems(), rows.length, hasNextPage, isFetching, fetchNextPage]);
+  }, [virtualItems, rows.length, hasNextPage, isFetching, fetchNextPage]);
 
 
   return (
     <div className="border rounded-md overflow-hidden">
       <div ref={parentRef} className="max-h-[70vh] overflow-auto">
         <div className="sticky top-0 z-10 bg-background border-b">
-          <div className="grid" style={{ gridTemplateColumns: `repeat(${columnsList.length}, minmax(120px, 1fr))` }}>
+          <div
+            className="grid min-w-full w-max"
+            style={{ gridTemplateColumns: `repeat(${columnsList.length}, minmax(160px, 1fr))` }}
+          >
             {table.getHeaderGroups().map((hg) => (
               <div key={hg.id} className="contents">
                 {hg.headers.map((h) => (
-                  <div key={h.id} className="px-3 py-2 h-10 text-sm font-medium whitespace-nowrap">
+                  <div
+                    key={h.id}
+                    className="px-3 py-2 h-10 text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis"
+                    title={String(h.column.columnDef.header as any)}
+                  >
                     {h.isPlaceholder ? null : (h.column.columnDef.header as any)}
                   </div>
                 ))}
@@ -80,34 +91,38 @@ export const DataTable: React.FC<{
             ))}
           </div>
         </div>
+
         <div
-          className="relative"
-          style={{ height: `${rowVirtualizer.getTotalSize() + 40}px` }}
+          className="grid min-w-full w-max transform-gpu"
+          style={{ gridTemplateColumns: `repeat(${columnsList.length}, minmax(160px, 1fr))` }}
         >
-          <div
-            className="absolute left-0 w-full grid transform-gpu"
-            style={{ top: 40, transform: `translateY(${rowVirtualizer.getVirtualItems()[0]?.start ?? 0}px)`, gridTemplateColumns: `repeat(${columnsList.length}, minmax(120px, 1fr))` }}
-          >
-            {rowVirtualizer.getVirtualItems().map((vi) => {
-              const row = table.getRowModel().rows[vi.index];
-              if (!row) {
-                return (
-                  <div key={`loader-${vi.index}`} className="col-span-full px-3 py-2 text-sm text-muted-foreground">
-                    Loading...
-                  </div>
-                );
-              }
+          {paddingTop > 0 && <div style={{ height: paddingTop }} className="col-span-full" />}
+
+          {virtualItems.map((vi) => {
+            const row = table.getRowModel().rows[vi.index];
+            if (!row) {
               return (
-                <div key={row.id} className="contents">
-                  {row.getVisibleCells().map((cell) => (
-                    <div key={cell.id} className="px-3 py-2 h-9 text-sm border-b whitespace-nowrap truncate" title={String(cell.getValue() ?? "")}>
-                      {cell.getValue() as any}
-                    </div>
-                  ))}
+                <div key={`loader-${vi.index}`} className="col-span-full px-3 py-2 h-10 text-sm text-muted-foreground border-b">
+                  Loading...
                 </div>
               );
-            })}
-          </div>
+            }
+            return (
+              <div key={row.id} className="contents">
+                {row.getVisibleCells().map((cell) => (
+                  <div
+                    key={cell.id}
+                    className="px-3 py-2 h-10 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis"
+                    title={String(cell.getValue() ?? "")}
+                  >
+                    {cell.getValue() as any}
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+
+          {paddingBottom > 0 && <div style={{ height: paddingBottom }} className="col-span-full" />}
         </div>
       </div>
       {rows.length === 0 && (
