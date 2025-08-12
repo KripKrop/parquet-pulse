@@ -79,7 +79,7 @@ export const DataTable: React.FC<{
       <div ref={parentRef} className="max-h-[70vh] overflow-auto">
         <div className="sticky top-0 z-10 bg-background border-b">
           <div
-            className="grid min-w-full w-max"
+            className="grid w-full min-w-full"
             style={{ gridTemplateColumns: `repeat(${columnsList.length}, minmax(160px, 1fr))` }}
           >
             {table.getHeaderGroups().map((hg) => (
@@ -99,7 +99,7 @@ export const DataTable: React.FC<{
         </div>
 
         <div
-          className="grid min-w-full w-max transform-gpu"
+          className="grid w-full min-w-full transform-gpu"
           style={{ gridTemplateColumns: `repeat(${columnsList.length}, minmax(160px, 1fr))` }}
         >
           {paddingTop > 0 && <div style={{ height: paddingTop }} className="col-span-full" />}
