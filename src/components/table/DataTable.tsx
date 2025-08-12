@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { ColumnDef, getCoreRowModel, useReactTable } from "@tanstack/react-table";
+import { ColumnDef, getCoreRowModel, useReactTable, flexRender } from "@tanstack/react-table";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { request } from "@/services/apiClient";
@@ -90,7 +90,7 @@ export const DataTable: React.FC<{
                     className="px-3 py-2 h-10 text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis"
                     title={String(h.column.columnDef.header as any)}
                   >
-                    {h.isPlaceholder ? null : (h.column.columnDef.header as any)}
+                    {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                   </div>
                 ))}
               </div>
@@ -122,9 +122,9 @@ export const DataTable: React.FC<{
                   <div
                     key={cell.id}
                     className="px-3 py-2 h-10 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis"
-                    title={String(cell.getValue() ?? "")}
+                    title={String((row as any).original[cell.column.id] ?? "")}
                   >
-                    {cell.getValue() as any}
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </div>
                 ))}
               </div>
