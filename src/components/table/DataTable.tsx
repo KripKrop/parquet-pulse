@@ -4,6 +4,9 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { request } from "@/services/apiClient";
 import type { QueryBody, QueryResponse } from "@/types/api";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { AnimatedCounter } from "@/components/ui/animated-counter";
+import { motion, AnimatePresence } from "framer-motion";
 
 export const DataTable: React.FC<{
   columnsList: string[];
@@ -77,7 +80,12 @@ export const DataTable: React.FC<{
 
 
   return (
-    <div className="border rounded-md overflow-hidden animate-fade-in card-elevated">
+    <motion.div 
+      className="border rounded-md overflow-hidden card-elevated"
+      initial={{ opacity: 0, scale: 0.98 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
+    >
       <div ref={parentRef} className="max-h-[70vh] overflow-auto">
         <div className="sticky top-0 z-10 bg-background border-b">
           <div
@@ -100,9 +108,45 @@ export const DataTable: React.FC<{
           </div>
         </div>
 
-        <div className="px-3 py-2 text-xs text-muted-foreground border-b">
-          Showing {rows.length} of {total} rows
-        </div>
+        <motion.div 
+          className="px-3 py-2 text-xs text-muted-foreground border-b flex items-center justify-between"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <span className="flex items-center gap-2">
+            Showing{" "}
+            <motion.strong
+              key={`showing-${rows.length}`}
+              initial={{ scale: 1.2, color: "hsl(var(--primary))" }}
+              animate={{ scale: 1, color: "hsl(var(--foreground))" }}
+              transition={{ duration: 0.3 }}
+            >
+              <AnimatedCounter value={rows.length} />
+            </motion.strong>{" "}
+            of{" "}
+            <motion.strong
+              key={`total-${total}`}
+              initial={{ scale: 1.2, color: "hsl(var(--primary))" }}
+              animate={{ scale: 1, color: "hsl(var(--foreground))" }}
+              transition={{ duration: 0.3 }}
+            >
+              <AnimatedCounter value={total} />
+            </motion.strong>{" "}
+            rows
+          </span>
+          {isFetching && (
+            <motion.div
+              initial={{ opacity: 0, x: 10 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 10 }}
+              className="flex items-center gap-2"
+            >
+              <LoadingSpinner size="sm" />
+              <span>Loading...</span>
+            </motion.div>
+          )}
+        </motion.div>
 
         <div
           className="grid min-w-full w-max transform-gpu"
@@ -114,9 +158,16 @@ export const DataTable: React.FC<{
             const isLoader = hasNextPage && vi.index === rows.length;
             if (isLoader) {
               return (
-                <div key={`loader-${vi.index}`} className="col-span-full px-3 py-2 h-10 text-sm text-muted-foreground border-b">
-                  Loading...
-                </div>
+                <motion.div 
+                  key={`loader-${vi.index}`} 
+                  className="col-span-full px-3 py-2 h-10 text-sm text-muted-foreground border-b flex items-center gap-2"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <LoadingSpinner size="sm" />
+                  Loading more data...
+                </motion.div>
               );
             }
             if (vi.index >= rows.length) return null;
@@ -140,17 +191,29 @@ export const DataTable: React.FC<{
           {paddingBottom > 0 && <div style={{ height: paddingBottom }} className="col-span-full" />}
         </div>
       </div>
-      {rows.length === 0 && (
-        <div className="px-4 py-10 text-center text-muted-foreground space-y-3">
-          <img
-            src="/images/ui/empty-state.gif"
-            alt="No results animation"
-            className="mx-auto h-20 w-20 opacity-80"
-            loading="lazy"
-          />
-          <div className="text-sm">No rows match your filters.</div>
-        </div>
+      {rows.length === 0 && !isFetching && (
+        <motion.div 
+          className="px-4 py-10 text-center text-muted-foreground space-y-3"
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.3 }}
+        >
+          <motion.div
+            initial={{ y: 10 }}
+            animate={{ y: 0 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
+          >
+            <img
+              src="/images/ui/loading-data.gif"
+              alt="No results animation"
+              className="mx-auto h-20 w-20 opacity-80"
+              loading="lazy"
+            />
+            <div className="text-lg font-medium mb-2">📊 No data found</div>
+            <div className="text-sm">Try adjusting your filters or upload more data.</div>
+          </motion.div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 };

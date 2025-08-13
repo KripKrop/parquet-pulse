@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BulkDeleteDialog } from "@/components/delete/BulkDeleteDialog";
 import { Link } from "react-router-dom";
+import { motion } from "framer-motion";
 
 const Index = () => {
   const { data: colsData, refetch: refetchCols } = useQuery({
@@ -34,12 +35,48 @@ const Index = () => {
 
   const columns = colsData?.columns ?? [];
 
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.1,
+        duration: 0.3
+      }
+    }
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0
+    }
+  };
+
   return (
-    <main className="container mx-auto py-6 animate-fade-in">
+    <motion.main 
+      className="container mx-auto py-6"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        <aside className="lg:col-span-4 space-y-6 animate-fade-in">
-          <UploadPanel onComplete={() => refetchCols()} />
-          <div className="border rounded-md p-4 card-elevated">
+        <motion.aside 
+          className="lg:col-span-4 space-y-6"
+          variants={itemVariants}
+        >
+          <motion.div
+            whileHover={{ scale: 1.01 }}
+            transition={{ duration: 0.2 }}
+          >
+            <UploadPanel onComplete={() => refetchCols()} />
+          </motion.div>
+          <motion.div 
+            className="border rounded-md p-4 card-elevated"
+            whileHover={{ scale: 1.005 }}
+            transition={{ duration: 0.2 }}
+          >
             <FiltersPanel
               columns={columns}
               filters={filters}
@@ -48,15 +85,29 @@ const Index = () => {
               onClearAll={clear}
               refreshKey={refreshKey}
             />
-          </div>
-        </aside>
-        <section className="lg:col-span-8 space-y-4 animate-fade-in">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient">CSV Viewer Data</h1>
-              <div className="flex items-center gap-2">
-                <Button variant="destructive" asChild>
+          </motion.div>
+        </motion.aside>
+        
+        <motion.section 
+          className="lg:col-span-8 space-y-4"
+          variants={itemVariants}
+        >
+          <motion.div 
+            className="flex items-center justify-between"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient-primary">
+              CSV Viewer Data
+            </h1>
+            <div className="flex items-center gap-2">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button variant="destructive" asChild className="button-smooth">
                   <Link to="/settings">Delete All Data</Link>
                 </Button>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <BulkDeleteDialog
                   filters={filters}
                   onDeleted={() => {
@@ -65,22 +116,47 @@ const Index = () => {
                     setRefreshKey((k) => k + 1);
                   }}
                 />
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <DownloadCsv filters={filters} fields={columns} />
-                <Button variant="gradient" onClick={() => {
-                  const main = document.querySelector('main');
-                  if (main) {
-                    main.scrollTo({ top: 0, behavior: 'smooth' });
-                  } else {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                }}>Top</Button>
-              </div>
-          </div>
-          <Separator />
-          <DataTable columnsList={columns} filters={filters} refreshKey={refreshKey} />
-        </section>
+              </motion.div>
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button 
+                  variant="gradient" 
+                  className="button-smooth hover-glow"
+                  onClick={() => {
+                    const main = document.querySelector('main');
+                    if (main) {
+                      main.scrollTo({ top: 0, behavior: 'smooth' });
+                    } else {
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }
+                  }}
+                >
+                  Top
+                </Button>
+              </motion.div>
+            </div>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, scaleX: 0 }}
+            animate={{ opacity: 1, scaleX: 1 }}
+            transition={{ duration: 0.3, delay: 0.3 }}
+          >
+            <Separator />
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
+          >
+            <DataTable columnsList={columns} filters={filters} refreshKey={refreshKey} />
+          </motion.div>
+        </motion.section>
       </div>
-    </main>
+    </motion.main>
   );
 };
 

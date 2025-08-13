@@ -1,29 +1,47 @@
 import { Link, NavLink } from "react-router-dom";
 import { Settings2 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { motion } from "framer-motion";
 
 const AppHeader = () => {
   return (
-    <header className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 animate-fade-in">
+    <motion.header 
+      className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50"
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+    >
       <div className="container mx-auto flex items-center justify-between py-3">
-        <Link to="/" className="font-semibold tracking-tight story-link text-gradient">
-          Crunch — Universal CSV Viewer
-        </Link>
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          transition={{ duration: 0.2 }}
+        >
+          <Link to="/" className="font-semibold tracking-tight story-link text-gradient-primary">
+            Crunch — Universal CSV Viewer
+          </Link>
+        </motion.div>
         <nav className="flex items-center gap-3">
-          <NavLink
-            to="/settings"
-            className={({ isActive }) =>
-              `inline-flex items-center gap-2 px-3 py-1.5 rounded-md border transition-colors hover:bg-accent hover-scale ${
-                isActive ? "bg-accent" : ""
-              }`
-            }
-            aria-label="Open Settings"
+          <ThemeToggle />
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
-            <Settings2 size={18} />
-            <span className="text-sm">Settings</span>
-          </NavLink>
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `inline-flex items-center gap-2 px-3 py-1.5 rounded-md border transition-all duration-200 hover:bg-accent hover:shadow-md ${
+                  isActive ? "bg-accent shadow-sm" : ""
+                }`
+              }
+              aria-label="Open Settings"
+            >
+              <Settings2 size={18} />
+              <span className="text-sm">Settings</span>
+            </NavLink>
+          </motion.div>
         </nav>
       </div>
-    </header>
+    </motion.header>
   );
 };
 

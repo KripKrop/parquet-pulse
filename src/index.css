@@ -103,26 +103,93 @@
   }
 }
 
-/* Utility classes for subtle motion and links */
+/* Advanced utility classes for modern UX */
 @layer utilities {
   .story-link {
     @apply relative inline-block after:content-[''] after:absolute after:w-full after:scale-x-0 after:h-0.5 after:bottom-0 after:left-0 after:bg-foreground/70 after:origin-bottom-right after:transition-transform after:duration-300 hover:after:scale-x-100 hover:after:origin-bottom-left;
   }
+  
   .hover-scale {
-    @apply transition-transform duration-200 hover:scale-105;
+    @apply transition-all duration-300 ease-out hover:scale-105 hover:shadow-lg;
   }
+  
+  .hover-glow {
+    @apply transition-all duration-300 ease-out hover:shadow-[0_0_20px_hsl(var(--primary)/0.3)] hover:scale-[1.02];
+  }
+  
   .pulse {
     @apply animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite];
   }
-  /* Gradient text using tokens */
+  
+  .pulse-slow {
+    @apply animate-[pulse_3s_cubic-bezier(0.4,0,0.6,1)_infinite];
+  }
+  
+  /* Enhanced gradient text */
   .text-gradient {
     @apply bg-clip-text text-transparent;
     background-image: linear-gradient(120deg, hsl(var(--foreground) / 0.95), hsl(var(--muted-foreground) / 0.95));
   }
-  /* Subtle elevation utility */
+  
+  .text-gradient-primary {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary) / 0.7));
+  }
+  
+  /* Elevated cards with smooth transitions */
   .card-elevated {
     box-shadow: 0 10px 30px -10px hsl(var(--ring) / 0.15), 0 2px 8px -2px hsl(var(--ring) / 0.08);
+    @apply transition-all duration-300 ease-out;
   }
+  
+  .card-elevated:hover {
+    box-shadow: 0 20px 40px -10px hsl(var(--ring) / 0.2), 0 4px 12px -2px hsl(var(--ring) / 0.12);
+    @apply translate-y-[-2px];
+  }
+  
+  /* Smooth button interactions */
+  .button-smooth {
+    @apply transition-all duration-200 ease-out transform-gpu;
+  }
+  
+  .button-smooth:hover {
+    @apply scale-[1.02] brightness-110;
+  }
+  
+  .button-smooth:active {
+    @apply scale-[0.98] brightness-95;
+  }
+  
+  /* Loading shimmer effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      hsl(var(--muted)) 0%,
+      hsl(var(--muted) / 0.8) 50%,
+      hsl(var(--muted)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+  }
+  
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  
+  /* Stagger animation for lists */
+  .stagger-item {
+    @apply opacity-0 translate-y-4;
+    animation: stagger-in 0.3s ease-out forwards;
+  }
+  
+  @keyframes stagger-in {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+}
 
   /* Polished progress bar styles */
   .progress-indeterminate {
