@@ -15,7 +15,8 @@ export const FiltersPanel: React.FC<{
   setFilters: (f: Filters) => void;
   onApply?: () => void;
   onClearAll?: () => void;
-}> = ({ columns, filters, setFilters, onApply, onClearAll }) => {
+  refreshKey?: number;
+}> = ({ columns, filters, setFilters, onApply, onClearAll, refreshKey = 0 }) => {
   const [open, setOpen] = useState<string[]>([]);
   const [search, setSearch] = useState<Record<string, string>>({});
   const debounced = useDebounce(search, 300);
@@ -27,15 +28,23 @@ export const FiltersPanel: React.FC<{
     setOptions((prev) => ({ ...prev, [col]: res.values }));
   };
 
-  // when a panel opens or search changes, fetch
+  // when a panel opens, search changes, or refreshKey bumps, fetch
   useEffect(() => {
     open.forEach((col) => fetchDistinct(col, debounced[col]));
-  }, [open, debounced]);
+  }, [open, debounced, refreshKey]);
 
   const toggleValue = (col: string, val: string) => {
     const cur = new Set(filters[col] || []);
     if (cur.has(val)) cur.delete(val); else cur.add(val);
-    setFilters({ ...filters, [col]: Array.from(cur) });
+    const next: Filters = { ...filters, [col]: Array.from(cur) };
+    if ((next[col]?.length || 0) === 0) delete next[col];
+    setFilters(next);
+  };
+
+  const setColumnValues = (col: string, vals: string[]) => {
+    const next: Filters = { ...filters };
+    if (vals.length > 0) next[col] = vals; else delete next[col];
+    setFilters(next);
   };
 
   const clearAll = () => {
@@ -58,7 +67,14 @@ export const FiltersPanel: React.FC<{
       <Accordion type="multiple" value={open} onValueChange={(v) => setOpen(v as string[])} className="w-full">
         {columns.map((col) => (
           <AccordionItem value={col} key={col}>
-            <AccordionTrigger className="text-left">{col}</AccordionTrigger>
+            <AccordionTrigger className="text-left">
+              <div className="flex items-center justify-between w-full">
+                <span>{col}</span>
+                <span className="text-xs text-muted-foreground">
+                  {(filters[col]?.length || 0)}{options[col] ? `/${(options[col] || []).length}` : ""}
+                </span>
+              </div>
+            </AccordionTrigger>
             <AccordionContent>
               <div className="space-y-2">
                 <Input
@@ -66,6 +82,24 @@ export const FiltersPanel: React.FC<{
                   value={search[col] || ""}
                   onChange={(e) => setSearch((s) => ({ ...s, [col]: e.target.value }))}
                 />
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setColumnValues(col, options[col] || [])}
+                    disabled={(options[col] || []).length === 0}
+                  >
+                    Select all ({(options[col] || []).length || 0})
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setColumnValues(col, [])}
+                    disabled={(filters[col] || []).length === 0}
+                  >
+                    Clear
+                  </Button>
+                </div>
                 <div className="flex flex-wrap gap-2 max-h-40 overflow-auto">
                   {(options[col] || []).map((v) => (
                     <button

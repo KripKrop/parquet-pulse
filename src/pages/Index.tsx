@@ -9,6 +9,7 @@ import { DownloadCsv } from "@/components/download/DownloadCsv";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BulkDeleteDialog } from "@/components/delete/BulkDeleteDialog";
+import { Link } from "react-router-dom";
 
 const Index = () => {
   const { data: colsData, refetch: refetchCols } = useQuery({
@@ -45,23 +46,27 @@ const Index = () => {
               setFilters={setFilters}
               onApply={apply}
               onClearAll={clear}
+              refreshKey={refreshKey}
             />
           </div>
         </aside>
         <section className="lg:col-span-8 space-y-4 animate-fade-in">
           <div className="flex items-center justify-between">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient">CSV Viewer Data</h1>
-            <div className="flex items-center gap-2">
-              <BulkDeleteDialog
-                filters={filters}
-                onDeleted={() => {
-                  refetchCols();
-                  setRefreshKey((k) => k + 1);
-                }}
-              />
-              <DownloadCsv filters={filters} fields={columns} />
-              <Button variant="gradient" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Top</Button>
-            </div>
+              <div className="flex items-center gap-2">
+                <Button variant="destructive" asChild>
+                  <Link to="/settings">Delete All Data</Link>
+                </Button>
+                <BulkDeleteDialog
+                  filters={filters}
+                  onDeleted={() => {
+                    refetchCols();
+                    setRefreshKey((k) => k + 1);
+                  }}
+                />
+                <DownloadCsv filters={filters} fields={columns} />
+                <Button variant="gradient" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Top</Button>
+              </div>
           </div>
           <Separator />
           <DataTable columnsList={columns} filters={filters} refreshKey={refreshKey} />

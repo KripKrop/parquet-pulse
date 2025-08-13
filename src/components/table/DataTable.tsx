@@ -40,6 +40,7 @@ export const DataTable: React.FC<{
   }, [columnsList]);
 
   const rows = useMemo(() => data?.pages.flatMap((p) => p.rows) ?? [], [data]);
+  const total = data?.pages?.[0]?.total ?? 0;
 
   const table = useReactTable({
     data: rows,
@@ -97,6 +98,10 @@ export const DataTable: React.FC<{
               </div>
             ))}
           </div>
+        </div>
+
+        <div className="px-3 py-2 text-xs text-muted-foreground border-b">
+          Showing {rows.length} of {total} rows
         </div>
 
         <div
