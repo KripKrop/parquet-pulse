@@ -108,7 +108,7 @@ export const DownloadCsv: React.FC<{
           <DialogTitle>Export CSV</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <Progress value={undefined} aria-label="download progress" />
+          <Progress value={busy ? undefined : 0} aria-label="download progress" />
           <div className="text-sm text-muted-foreground">Downloaded {count} rows…</div>
         </div>
         <DialogFooter>
