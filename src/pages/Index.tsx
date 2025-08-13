@@ -60,12 +60,20 @@ const Index = () => {
                 <BulkDeleteDialog
                   filters={filters}
                   onDeleted={() => {
+                    setFilters({});
                     refetchCols();
                     setRefreshKey((k) => k + 1);
                   }}
                 />
                 <DownloadCsv filters={filters} fields={columns} />
-                <Button variant="gradient" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Top</Button>
+                <Button variant="gradient" onClick={() => {
+                  const main = document.querySelector('main');
+                  if (main) {
+                    main.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else {
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }
+                }}>Top</Button>
               </div>
           </div>
           <Separator />

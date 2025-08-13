@@ -33,6 +33,14 @@ export const FiltersPanel: React.FC<{
     open.forEach((col) => fetchDistinct(col, debounced[col]));
   }, [open, debounced, refreshKey]);
 
+  // when refreshKey changes, refetch all visible columns and clear cached options
+  useEffect(() => {
+    if (refreshKey > 0) {
+      setOptions({});
+      open.forEach((col) => fetchDistinct(col, debounced[col]));
+    }
+  }, [refreshKey]);
+
   const toggleValue = (col: string, val: string) => {
     const cur = new Set(filters[col] || []);
     if (cur.has(val)) cur.delete(val); else cur.add(val);
