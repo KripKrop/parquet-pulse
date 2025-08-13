@@ -25,6 +25,26 @@ export type JobStatus = {
 export type ColumnsResponse = { columns: string[] };
 export type DistinctResponse = { values: string[] };
 
+export type FacetValue = {
+  value: string;
+  count: number;
+};
+
+export type FacetsRequest = {
+  filters: Record<string, string[]>;
+  fields?: string[];
+  exclude_self?: boolean;
+  limit?: number;
+  include_empty?: boolean;
+  order?: "count_desc" | "value_asc" | "value_desc";
+};
+
+export type FacetsResponse = {
+  facets: Record<string, FacetValue[]>;
+  total: number;
+  columns: string[];
+};
+
 export type QueryBody = {
   filters: Record<string, string[]>;
   fields?: string[];

@@ -1,13 +1,14 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useDebounce } from "@/hooks/useDebounce";
-import { request } from "@/services/apiClient";
+import { request, getApiConfig } from "@/services/apiClient";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { motion, AnimatePresence } from "framer-motion";
+import { FacetsRequest, FacetsResponse, FacetValue } from "@/types/api";
 
 export type Filters = Record<string, string[]>;
 
@@ -21,25 +22,82 @@ export const FiltersPanel: React.FC<{
 }> = ({ columns, filters, setFilters, onApply, onClearAll, refreshKey = 0 }) => {
   const [open, setOpen] = useState<string[]>([]);
   const [search, setSearch] = useState<Record<string, string>>({});
-  const debounced = useDebounce(search, 300);
-  const [options, setOptions] = useState<Record<string, string[]>>({});
+  const debounced = useDebounce(search, 200);
+  const [facets, setFacets] = useState<Record<string, FacetValue[]>>({});
+  const [totalRows, setTotalRows] = useState<number>(0);
+  const [loading, setLoading] = useState<Record<string, boolean>>({});
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  const fetchDistinct = async (col: string, q?: string) => {
-    const url = q ? `/distinct/${encodeURIComponent(col)}?q=${encodeURIComponent(q)}&limit=200` : `/distinct/${encodeURIComponent(col)}?limit=200`;
-    const res = await request<{ values: string[] }>(url);
-    setOptions((prev) => ({ ...prev, [col]: res.values }));
+  const fetchFacets = async (visibleColumns: string[]) => {
+    // Abort any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
+    try {
+      setLoading(prev => visibleColumns.reduce((acc, col) => ({ ...acc, [col]: true }), prev));
+
+      const request: FacetsRequest = {
+        filters,
+        fields: visibleColumns,
+        exclude_self: true,
+        limit: 200,
+        include_empty: false,
+        order: "count_desc"
+      };
+
+      const { baseUrl, apiKey } = getApiConfig();
+      const url = `${baseUrl}/facets`;
+      
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": apiKey
+        },
+        body: JSON.stringify(request),
+        signal: controller.signal
+      });
+
+      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
+      
+      const data: FacetsResponse = await response.json();
+      
+      // Apply search filters to the facets
+      const filteredFacets: Record<string, FacetValue[]> = {};
+      visibleColumns.forEach(col => {
+        const searchTerm = debounced[col]?.toLowerCase() || "";
+        const columnFacets = data.facets[col] || [];
+        filteredFacets[col] = searchTerm 
+          ? columnFacets.filter(f => f.value.toLowerCase().includes(searchTerm))
+          : columnFacets;
+      });
+      
+      setFacets(prev => ({ ...prev, ...filteredFacets }));
+      setTotalRows(data.total);
+    } catch (error) {
+      if (error.name !== 'AbortError') {
+        console.error('Failed to fetch facets:', error);
+      }
+    } finally {
+      setLoading(prev => visibleColumns.reduce((acc, col) => ({ ...acc, [col]: false }), prev));
+    }
   };
 
-  // when a panel opens, search changes, or refreshKey bumps, fetch
+  // Fetch facets when filters change, visible columns change, or search terms change
   useEffect(() => {
-    open.forEach((col) => fetchDistinct(col, debounced[col]));
-  }, [open, debounced, refreshKey]);
+    if (open.length > 0) {
+      fetchFacets(open);
+    }
+  }, [filters, open, debounced, refreshKey]);
 
-  // when refreshKey changes, refetch all visible columns and clear cached options
+  // Clear facets when refreshKey changes
   useEffect(() => {
     if (refreshKey > 0) {
-      setOptions({});
-      open.forEach((col) => fetchDistinct(col, debounced[col]));
+      setFacets({});
     }
   }, [refreshKey]);
 
@@ -130,28 +188,35 @@ export const FiltersPanel: React.FC<{
                 <AccordionTrigger className="text-left hover:bg-accent/30 transition-colors duration-200 rounded px-2">
                   <div className="flex items-center justify-between w-full">
                     <span className="font-medium">{col}</span>
-                    <div className="flex items-center gap-2">
-                      {options[col] && (
-                        <motion.span 
-                          className="text-xs text-muted-foreground px-2 py-1 rounded-md bg-muted"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <AnimatedCounter value={(options[col] || []).length} />
-                        </motion.span>
-                      )}
-                      {(filters[col]?.length || 0) > 0 && (
-                        <motion.span 
-                          className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-md"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          <AnimatedCounter value={filters[col]?.length || 0} />
-                        </motion.span>
-                      )}
-                    </div>
+                     <div className="flex items-center gap-2">
+                       {facets[col] && (
+                         <motion.span 
+                           className="text-xs text-muted-foreground px-2 py-1 rounded-md bg-muted"
+                           initial={{ scale: 0 }}
+                           animate={{ scale: 1 }}
+                           transition={{ duration: 0.2 }}
+                         >
+                           <AnimatedCounter value={(facets[col] || []).length} />
+                         </motion.span>
+                       )}
+                       {(filters[col]?.length || 0) > 0 && (
+                         <motion.span 
+                           className="text-xs bg-primary text-primary-foreground px-2 py-1 rounded-md"
+                           initial={{ scale: 0 }}
+                           animate={{ scale: 1 }}
+                           transition={{ duration: 0.2 }}
+                         >
+                           <AnimatedCounter value={filters[col]?.length || 0} />
+                         </motion.span>
+                       )}
+                       {loading[col] && (
+                         <motion.div
+                           className="h-2 w-2 bg-primary rounded-full"
+                           animate={{ scale: [1, 1.2, 1] }}
+                           transition={{ duration: 0.8, repeat: Infinity }}
+                         />
+                       )}
+                     </div>
                   </div>
                 </AccordionTrigger>
                 <AccordionContent>
@@ -173,15 +238,15 @@ export const FiltersPanel: React.FC<{
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                       >
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          onClick={() => setColumnValues(col, options[col] || [])}
-                          disabled={(options[col] || []).length === 0}
-                          className="button-smooth"
-                        >
-                          Select all (<AnimatedCounter value={(options[col] || []).length || 0} />)
-                        </Button>
+                         <Button
+                           variant="secondary"
+                           size="sm"
+                           onClick={() => setColumnValues(col, (facets[col] || []).map(f => f.value))}
+                           disabled={(facets[col] || []).length === 0}
+                           className="button-smooth"
+                         >
+                           Select all (<AnimatedCounter value={(facets[col] || []).length || 0} />)
+                         </Button>
                       </motion.div>
                       <motion.div
                         whileHover={{ scale: 1.05 }}
@@ -198,27 +263,38 @@ export const FiltersPanel: React.FC<{
                         </Button>
                       </motion.div>
                     </div>
-                    <div className="flex flex-wrap gap-2 max-h-40 overflow-auto">
-                      <AnimatePresence>
-                        {(options[col] || []).map((v, valIndex) => (
-                          <motion.button
-                            key={v}
-                            onClick={() => toggleValue(col, v)}
-                            className={`px-2 py-1 rounded border text-sm transition-all duration-200 hover:scale-105 ${
-                              (filters[col] || []).includes(v) ? "bg-accent shadow-md" : "hover:bg-accent/50"
-                            }`}
-                            initial={{ opacity: 0, scale: 0.8 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            exit={{ opacity: 0, scale: 0.8 }}
-                            transition={{ duration: 0.1, delay: valIndex * 0.02 }}
-                            whileHover={{ scale: 1.05 }}
-                            whileTap={{ scale: 0.95 }}
-                          >
-                            {v}
-                          </motion.button>
-                        ))}
-                      </AnimatePresence>
-                    </div>
+                     <div className="flex flex-wrap gap-2 max-h-40 overflow-auto">
+                       <AnimatePresence>
+                         {(facets[col] || []).map((facet, valIndex) => {
+                           const isSelected = (filters[col] || []).includes(facet.value);
+                           return (
+                             <motion.button
+                               key={facet.value}
+                               onClick={() => toggleValue(col, facet.value)}
+                               className={`px-2 py-1 rounded border text-sm transition-all duration-200 hover:scale-105 flex items-center gap-1 ${
+                                 isSelected ? "bg-accent shadow-md" : "hover:bg-accent/50"
+                               }`}
+                               initial={{ opacity: 0, scale: 0.8 }}
+                               animate={{ opacity: 1, scale: 1 }}
+                               exit={{ opacity: 0, scale: 0.8 }}
+                               transition={{ duration: 0.1, delay: valIndex * 0.02 }}
+                               whileHover={{ scale: 1.05 }}
+                               whileTap={{ scale: 0.95 }}
+                             >
+                               <span>{facet.value}</span>
+                               <motion.span 
+                                 className="text-xs opacity-70 bg-background/50 px-1 rounded"
+                                 initial={{ scale: 0 }}
+                                 animate={{ scale: 1 }}
+                                 transition={{ duration: 0.2 }}
+                               >
+                                 <AnimatedCounter value={facet.count} />
+                               </motion.span>
+                             </motion.button>
+                           );
+                         })}
+                       </AnimatePresence>
+                     </div>
                     {(filters[col] || []).length > 0 && (
                       <motion.div 
                         className="flex flex-wrap gap-2 pt-2"
