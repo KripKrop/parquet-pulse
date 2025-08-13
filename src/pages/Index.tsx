@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { request } from "@/services/apiClient";
 import type { ColumnsResponse } from "@/types/api";
@@ -8,6 +8,7 @@ import { DataTable } from "@/components/table/DataTable";
 import { DownloadCsv } from "@/components/download/DownloadCsv";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
+import { BulkDeleteDialog } from "@/components/delete/BulkDeleteDialog";
 
 const Index = () => {
   const { data: colsData, refetch: refetchCols } = useQuery({
@@ -16,8 +17,19 @@ const Index = () => {
   });
 
   const [filters, setFilters] = useState<Filters>({});
+  const [refreshKey, setRefreshKey] = useState(0);
   const apply = () => setFilters({ ...filters });
   const clear = () => setFilters({});
+
+  useEffect(() => {
+    // If a global clear occurred from Settings, reset and refresh
+    if (sessionStorage.getItem("ucpv.cleared") === "1") {
+      sessionStorage.removeItem("ucpv.cleared");
+      setFilters({});
+      refetchCols();
+      setRefreshKey((k) => k + 1);
+    }
+  }, [refetchCols]);
 
   const columns = colsData?.columns ?? [];
 
@@ -40,12 +52,19 @@ const Index = () => {
           <div className="flex items-center justify-between">
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient">CSV Viewer Data</h1>
             <div className="flex items-center gap-2">
+              <BulkDeleteDialog
+                filters={filters}
+                onDeleted={() => {
+                  refetchCols();
+                  setRefreshKey((k) => k + 1);
+                }}
+              />
               <DownloadCsv filters={filters} fields={columns} />
               <Button variant="gradient" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>Top</Button>
             </div>
           </div>
           <Separator />
-          <DataTable columnsList={columns} filters={filters} />
+          <DataTable columnsList={columns} filters={filters} refreshKey={refreshKey} />
         </section>
       </div>
     </main>

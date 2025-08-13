@@ -8,7 +8,8 @@ import type { QueryBody, QueryResponse } from "@/types/api";
 export const DataTable: React.FC<{
   columnsList: string[];
   filters: Record<string, string[]>;
-}> = ({ columnsList, filters }) => {
+  refreshKey?: number;
+}> = ({ columnsList, filters, refreshKey = 0 }) => {
   const limit = 200;
 
   const queryFn = async ({ pageParam = 0 }): Promise<QueryResponse> => {
@@ -20,7 +21,7 @@ export const DataTable: React.FC<{
   };
 
   const { data, fetchNextPage, hasNextPage, isFetching, refetch } = useInfiniteQuery({
-    queryKey: ["query", filters],
+    queryKey: ["query", filters, refreshKey],
     queryFn,
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {

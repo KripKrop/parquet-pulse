@@ -47,7 +47,10 @@ export async function request<T = any>(path: string, init: RequestInit = {}): Pr
       toast({ title: "Unauthorized", description: "Invalid API Key. Update it in Settings.", variant: "destructive" });
     }
     const text = await res.text().catch(() => "");
-    throw new Error(text || `Request failed: ${res.status}`);
+    const err: any = new Error(text || `Request failed: ${res.status}`);
+    err.status = res.status;
+    err.body = text;
+    throw err;
   }
   const contentType = res.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
