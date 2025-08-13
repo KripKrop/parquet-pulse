@@ -81,13 +81,13 @@ export const DataTable: React.FC<{
 
   return (
     <motion.div 
-      className="border rounded-md overflow-hidden card-elevated"
+      className="glass-table liquid-scale overflow-hidden"
       initial={{ opacity: 0, scale: 0.98 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
       <div ref={parentRef} className="max-h-[70vh] overflow-auto">
-        <div className="sticky top-0 z-10 bg-background border-b">
+        <div className="sticky top-0 z-10 glass-panel border-b">
           <div
             className="grid min-w-full w-max"
             style={{ gridTemplateColumns: `repeat(${columnsList.length}, 220px)` }}
@@ -178,7 +178,7 @@ export const DataTable: React.FC<{
                 {row.getVisibleCells().map((cell) => (
                   <div
                     key={cell.id}
-                    className="px-3 py-2 h-10 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis transition-colors hover:bg-accent/30"
+                    className="px-3 py-2 h-10 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 hover:bg-accent/20 hover:backdrop-blur-sm liquid-bounce"
                     title={String((row as any).original[cell.column.id] ?? "")}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

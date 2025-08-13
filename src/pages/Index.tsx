@@ -73,7 +73,7 @@ const Index = () => {
             <UploadPanel onComplete={() => refetchCols()} />
           </motion.div>
           <motion.div 
-            className="border rounded-md p-4 card-elevated"
+            className="glass-card liquid-scale rounded-md p-4"
             whileHover={{ scale: 1.005 }}
             transition={{ duration: 0.2 }}
           >

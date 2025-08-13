@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { motion } from "framer-motion";
 
 const Settings = () => {
   const { baseUrl: initBase, apiKey: initKey, setConfig } = useApiClient();
@@ -38,13 +40,50 @@ const Settings = () => {
   const resolvedWs = wsUrl("/ws/status/example");
 
   return (
-    <main className="container mx-auto max-w-3xl py-6">
+    <motion.main 
+      className="container mx-auto max-w-3xl py-6"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+    >
       <h1 className="sr-only">Settings - Crunch</h1>
-      <Card>
-        <CardHeader>
-          <CardTitle>Settings</CardTitle>
-          <CardDescription>Configure API connectivity</CardDescription>
-        </CardHeader>
+      
+      {/* Theme Settings */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1, duration: 0.3 }}
+      >
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>Appearance</CardTitle>
+            <CardDescription>Customize your visual experience</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center justify-between">
+              <div>
+                <Label className="text-base font-medium">Theme</Label>
+                <p className="text-sm text-muted-foreground">Switch between light and dark modes</p>
+              </div>
+              <ThemeToggle />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      <div className="h-6" />
+
+      {/* API Settings */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2, duration: 0.3 }}
+      >
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle>API Configuration</CardTitle>
+            <CardDescription>Configure API connectivity</CardDescription>
+          </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid gap-3">
             <Label htmlFor="base">API Base URL</Label>
@@ -68,15 +107,22 @@ const Settings = () => {
             <Button onClick={onSave}>Save</Button>
           </div>
         </CardContent>
-      </Card>
+        </Card>
+      </motion.div>
 
       <div className="h-6" />
 
-      <Card className="border-destructive/50">
-        <CardHeader>
-          <CardTitle className="text-destructive">Danger Zone</CardTitle>
-          <CardDescription>Irreversible operations. Proceed with caution.</CardDescription>
-        </CardHeader>
+      {/* Danger Zone */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3, duration: 0.3 }}
+      >
+        <Card className="glass-card border-destructive/20 glass-danger">
+          <CardHeader>
+            <CardTitle className="text-destructive">Danger Zone</CardTitle>
+            <CardDescription>Irreversible operations. Proceed with caution.</CardDescription>
+          </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="confirm">Type DELETE ALL to enable</Label>
@@ -114,8 +160,9 @@ const Settings = () => {
             </Button>
           </div>
         </CardContent>
-      </Card>
-    </main>
+        </Card>
+      </motion.div>
+    </motion.main>
   );
 };
 

@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 import { request } from "@/services/apiClient";
 import { useJobStatus } from "@/hooks/useJobStatus";
 import type { JobStatus } from "@/types/api";
+import { motion } from "framer-motion";
 
 const stageLabel: Record<NonNullable<JobStatus["stage"]>, string> = {
   uploading: "Uploading",
@@ -72,17 +73,19 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
   const handleBrowse = () => inputRef.current?.click();
 
   return (
-    <Card>
+    <Card className="glass-card liquid-scale">
       <CardHeader>
         <CardTitle>Upload CSV</CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div
+        <motion.div
           onDragOver={(e) => e.preventDefault()}
           onDrop={handleDrop}
-          className="border-2 border-dashed rounded-md p-6 text-center hover:bg-accent transition cursor-pointer"
+          className="border-2 border-dashed rounded-md p-6 text-center glass-button transition-all duration-200 cursor-pointer liquid-bounce"
           onClick={handleBrowse}
           aria-label="Drop file here or click to browse"
+          whileHover={{ scale: 1.02, borderColor: "hsl(var(--primary) / 0.5)" }}
+          whileTap={{ scale: 0.98 }}
         >
           <input
             ref={inputRef}
@@ -94,16 +97,25 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
           <div className="text-sm text-muted-foreground">
             {file ? `Selected: ${file.name}` : "Drop a CSV file here, or click to browse"}
           </div>
-        </div>
+        </motion.div>
         <div className="flex items-center gap-2">
-          <Button onClick={onSubmit} disabled={!file}>Upload</Button>
+          <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+            <Button onClick={onSubmit} disabled={!file} className="liquid-bounce">Upload</Button>
+          </motion.div>
           {file && (
-            <Button variant="secondary" onClick={() => setFile(null)}>Clear</Button>
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button variant="secondary" onClick={() => setFile(null)} className="liquid-bounce">Clear</Button>
+            </motion.div>
           )}
         </div>
 
         {status && (
-          <div className="space-y-2 animate-fade-in">
+          <motion.div 
+            className="space-y-2 glass-float rounded-lg p-3"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+          >
             <Progress value={progress} aria-label="Ingestion progress" />
             <div className="text-sm text-muted-foreground grid grid-cols-2 sm:grid-cols-4 gap-2">
               <div>Stage: <span className="font-medium">{status.stage ? stageLabel[status.stage] : status.status}</span></div>
@@ -117,7 +129,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
             {isFailed && (
               <div className="text-sm text-destructive">Failed: {status.error}</div>
             )}
-          </div>
+          </motion.div>
         )}
       </CardContent>
     </Card>

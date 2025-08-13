@@ -1,12 +1,11 @@
 import { Link, NavLink } from "react-router-dom";
 import { Settings2 } from "lucide-react";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { motion } from "framer-motion";
 
 const AppHeader = () => {
   return (
     <motion.header 
-      className="border-b bg-background/80 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50"
+      className="glass-panel border-b sticky top-0 z-50"
       initial={{ y: -100, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
@@ -21,7 +20,6 @@ const AppHeader = () => {
           </Link>
         </motion.div>
         <nav className="flex items-center gap-3">
-          <ThemeToggle />
           <motion.div
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
@@ -29,8 +27,8 @@ const AppHeader = () => {
             <NavLink
               to="/settings"
               className={({ isActive }) =>
-                `inline-flex items-center gap-2 px-3 py-1.5 rounded-md border transition-all duration-200 hover:bg-accent hover:shadow-md ${
-                  isActive ? "bg-accent shadow-sm" : ""
+                `inline-flex items-center gap-2 px-3 py-1.5 rounded-md glass-button transition-all duration-200 hover:glass-button-hover ${
+                  isActive ? "glass-button-active" : ""
                 }`
               }
               aria-label="Open Settings"
