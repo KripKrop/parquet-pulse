@@ -44,7 +44,6 @@ export const FiltersPanel: React.FC<{
         filters,
         fields: visibleColumns,
         exclude_self: true,
-        limit: 200,
         include_empty: false,
         order: "count_desc"
       };
