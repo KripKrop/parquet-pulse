@@ -139,19 +139,43 @@ export const FiltersPanel: React.FC<{
   };
 
   const setColumnValues = useCallback((col: string, vals: string[]) => {
-    // Use requestAnimationFrame for large updates to keep UI responsive
-    if (vals.length > 5000) {
-      requestAnimationFrame(() => {
-        const next: Filters = { ...filters };
-        if (vals.length > 0) next[col] = vals; else delete next[col];
-        setFilters(next);
-      });
-    } else {
-      const next: Filters = { ...filters };
-      if (vals.length > 0) next[col] = vals; else delete next[col];
-      setFilters(next);
-    }
+    const next: Filters = { ...filters };
+    if (vals.length > 0) next[col] = vals; else delete next[col];
+    setFilters(next);
   }, [filters, setFilters]);
+  
+  // Chunked select all for large datasets
+  const handleSelectAllColumn = useCallback(async (col: string) => {
+    const allValues = (facets[col] || []).map(f => f.value);
+    
+    // For small datasets, update directly
+    if (allValues.length <= 1000) {
+      setColumnValues(col, allValues);
+      return;
+    }
+    
+    // For large datasets, update in chunks to prevent UI blocking
+    const chunkSize = 1000;
+    const chunks = [];
+    for (let i = 0; i < allValues.length; i += chunkSize) {
+      chunks.push(allValues.slice(i, i + chunkSize));
+    }
+    
+    // Start with first chunk
+    let accumulatedValues = [...chunks[0]];
+    setColumnValues(col, accumulatedValues);
+    
+    // Process remaining chunks with delays
+    for (let i = 1; i < chunks.length; i++) {
+      await new Promise(resolve => {
+        setTimeout(() => {
+          accumulatedValues = [...accumulatedValues, ...chunks[i]];
+          setColumnValues(col, accumulatedValues);
+          resolve(void 0);
+        }, 16); // ~60fps
+      });
+    }
+  }, [facets, setColumnValues]);
 
   const clearAll = () => {
     setFilters({});
@@ -374,7 +398,7 @@ export const FiltersPanel: React.FC<{
                          facets={facets[col] || []}
                          selectedValues={filters[col] || []}
                          onToggleValue={(value) => toggleValue(col, value)}
-                         onSelectAll={() => setColumnValues(col, (facets[col] || []).map(f => f.value))}
+                         onSelectAll={() => handleSelectAllColumn(col)}
                          onClear={() => setColumnValues(col, [])}
                          maxHeight={320}
                        />
