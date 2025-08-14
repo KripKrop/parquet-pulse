@@ -237,13 +237,41 @@ export const FiltersPanel: React.FC<{
                            <AnimatedCounter value={filters[col]?.length || 0} />
                          </motion.span>
                        )}
-                       {loading[col] && (
-                         <motion.div
-                           className="h-2 w-2 bg-primary rounded-full"
-                           animate={{ scale: [1, 1.2, 1] }}
-                           transition={{ duration: 0.8, repeat: Infinity }}
-                         />
-                       )}
+                        {loading[col] && (
+                          <motion.div
+                            className="glass-panel h-3 w-3 rounded-full overflow-hidden relative"
+                            initial={{ scale: 0, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            exit={{ scale: 0, opacity: 0 }}
+                            transition={{ duration: 0.3 }}
+                          >
+                            <motion.div
+                              className="absolute inset-0 bg-gradient-to-r from-primary/60 via-primary to-primary/60 rounded-full"
+                              animate={{
+                                rotate: [0, 360],
+                                scale: [0.8, 1.2, 0.8],
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                              }}
+                            />
+                            <motion.div
+                              className="absolute inset-0.5 bg-background/20 rounded-full"
+                              animate={{
+                                scale: [1, 0.8, 1],
+                                opacity: [0.3, 0.8, 0.3]
+                              }}
+                              transition={{
+                                duration: 1.5,
+                                repeat: Infinity,
+                                ease: "easeInOut",
+                                delay: 0.2
+                              }}
+                            />
+                          </motion.div>
+                        )}
                      </div>
                   </div>
                 </AccordionTrigger>
@@ -292,8 +320,79 @@ export const FiltersPanel: React.FC<{
                       </motion.div>
                     </div>
                      <div className="space-y-2">
-                        <div className="flex flex-wrap gap-2 max-h-40 overflow-auto">
-                          {getVisibleFacets(col).map((facet, valIndex) => {
+                        {loading[col] ? (
+                          <motion.div
+                            className="glass-panel p-4 rounded-lg min-h-32 flex items-center justify-center relative overflow-hidden"
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.4, ease: "easeOut" }}
+                          >
+                            <motion.div
+                              className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent"
+                              animate={{
+                                background: [
+                                  "linear-gradient(135deg, hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.05), transparent)",
+                                  "linear-gradient(225deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.08), transparent)",
+                                  "linear-gradient(315deg, hsl(var(--primary) / 0.1), hsl(var(--primary) / 0.05), transparent)"
+                                ]
+                              }}
+                              transition={{
+                                duration: 3,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                              }}
+                            />
+                            <motion.div className="flex flex-col items-center gap-3 relative z-10">
+                              <motion.div
+                                className="glass-button w-8 h-8 rounded-full flex items-center justify-center"
+                                animate={{
+                                  scale: [1, 1.1, 1],
+                                  rotate: [0, 180, 360]
+                                }}
+                                transition={{
+                                  duration: 2,
+                                  repeat: Infinity,
+                                  ease: "easeInOut"
+                                }}
+                              >
+                                <motion.div
+                                  className="w-4 h-4 border-2 border-primary rounded-full border-t-transparent"
+                                  animate={{ rotate: 360 }}
+                                  transition={{
+                                    duration: 1,
+                                    repeat: Infinity,
+                                    ease: "linear"
+                                  }}
+                                />
+                              </motion.div>
+                              <motion.span
+                                className="text-sm text-muted-foreground font-medium"
+                                animate={{ opacity: [0.5, 1, 0.5] }}
+                                transition={{
+                                  duration: 2,
+                                  repeat: Infinity,
+                                  ease: "easeInOut"
+                                }}
+                              >
+                                Loading filter values...
+                              </motion.span>
+                            </motion.div>
+                            <motion.div
+                              className="absolute -inset-2 bg-gradient-to-r from-transparent via-primary/5 to-transparent"
+                              animate={{
+                                x: ["-100%", "100%"],
+                                opacity: [0, 1, 0]
+                              }}
+                              transition={{
+                                duration: 2,
+                                repeat: Infinity,
+                                ease: "easeInOut"
+                              }}
+                            />
+                          </motion.div>
+                        ) : (
+                          <div className="flex flex-wrap gap-2 max-h-40 overflow-auto">
+                           {getVisibleFacets(col).map((facet, valIndex) => {
                             const isSelected = (filters[col] || []).includes(facet.value);
                             return (
                               <motion.button
@@ -320,8 +419,9 @@ export const FiltersPanel: React.FC<{
                                 </motion.span>
                               </motion.button>
                             );
-                          })}
-                        </div>
+                           })}
+                          </div>
+                        )}
                         
                         {(facets[col] || []).length > (visibleCounts[col] || INITIAL_VISIBLE_COUNT) && (
                           <motion.div
