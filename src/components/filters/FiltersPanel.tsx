@@ -138,11 +138,20 @@ export const FiltersPanel: React.FC<{
     setFilters(next);
   };
 
-  const setColumnValues = (col: string, vals: string[]) => {
-    const next: Filters = { ...filters };
-    if (vals.length > 0) next[col] = vals; else delete next[col];
-    setFilters(next);
-  };
+  const setColumnValues = useCallback((col: string, vals: string[]) => {
+    // Use requestAnimationFrame for large updates to keep UI responsive
+    if (vals.length > 5000) {
+      requestAnimationFrame(() => {
+        const next: Filters = { ...filters };
+        if (vals.length > 0) next[col] = vals; else delete next[col];
+        setFilters(next);
+      });
+    } else {
+      const next: Filters = { ...filters };
+      if (vals.length > 0) next[col] = vals; else delete next[col];
+      setFilters(next);
+    }
+  }, [filters, setFilters]);
 
   const clearAll = () => {
     setFilters({});

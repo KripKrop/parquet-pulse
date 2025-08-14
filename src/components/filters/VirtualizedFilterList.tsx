@@ -76,49 +76,31 @@ export const VirtualizedFilterList: React.FC<VirtualizedFilterListProps> = ({
   const selectedSet = useMemo(() => new Set(selectedValues), [selectedValues]);
   const listRef = useRef<List>(null);
 
-  // Chunked select all to prevent UI freezing
+  // Optimized select all implementation
   const handleSelectAll = useCallback(async () => {
     if (isSelectingAll) return;
     
     setIsSelectingAll(true);
     
-    // Process in chunks to avoid blocking the UI
-    const totalChunks = Math.ceil(facets.length / CHUNK_SIZE);
-    
-    for (let i = 0; i < totalChunks; i++) {
-      const start = i * CHUNK_SIZE;
-      const end = Math.min(start + CHUNK_SIZE, facets.length);
-      
-      // Use requestAnimationFrame to ensure UI stays responsive
-      await new Promise(resolve => {
-        requestAnimationFrame(() => {
-          // Process this chunk
-          for (let j = start; j < end; j++) {
-            if (!selectedSet.has(facets[j].value)) {
-              onToggleValue(facets[j].value);
-            }
-          }
-          resolve(void 0);
+    try {
+      // For large datasets, use requestAnimationFrame to ensure UI stays responsive
+      if (facets.length > 5000) {
+        await new Promise(resolve => {
+          requestAnimationFrame(() => {
+            onSelectAll();
+            resolve(void 0);
+          });
         });
-      });
-      
-      // Add a small delay between chunks for very large datasets
-      if (facets.length > 10000 && i < totalChunks - 1) {
-        await new Promise(resolve => setTimeout(resolve, 1));
+      } else {
+        // For smaller datasets, just call directly
+        onSelectAll();
       }
+    } catch (error) {
+      console.error('Error during select all:', error);
+    } finally {
+      setIsSelectingAll(false);
     }
-    
-    setIsSelectingAll(false);
-  }, [facets, selectedSet, onToggleValue, isSelectingAll]);
-
-  // Alternative approach: Select all at once (faster but might freeze on very large datasets)
-  const handleSelectAllSync = useCallback(() => {
-    if (isSelectingAll) return;
-    onSelectAll();
-  }, [onSelectAll, isSelectingAll]);
-
-  // Use sync version for smaller datasets, chunked for larger ones
-  const handleSelectAllClick = facets.length > 5000 ? handleSelectAll : handleSelectAllSync;
+  }, [facets.length, onSelectAll, isSelectingAll]);
 
   const itemData = useMemo(() => ({
     facets,
@@ -141,7 +123,7 @@ export const VirtualizedFilterList: React.FC<VirtualizedFilterListProps> = ({
           <Button
             variant="secondary"
             size="sm"
-            onClick={handleSelectAllClick}
+            onClick={handleSelectAll}
             disabled={facets.length === 0 || isSelectingAll}
             className="button-smooth"
           >
