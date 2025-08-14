@@ -120,22 +120,6 @@ const Index = () => {
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <DownloadCsv filters={filters} fields={columns} />
               </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button 
-                  variant="gradient" 
-                  className="button-smooth hover-glow"
-                  onClick={() => {
-                    const main = document.querySelector('main');
-                    if (main) {
-                      main.scrollTo({ top: 0, behavior: 'smooth' });
-                    } else {
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }
-                  }}
-                >
-                  Top
-                </Button>
-              </motion.div>
             </div>
           </motion.div>
           
