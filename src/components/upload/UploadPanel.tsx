@@ -305,7 +305,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
 
           {status && (
             <motion.div 
-              className="space-y-3 glass-float rounded-xl p-4 border border-primary/20 relative overflow-hidden"
+              className="space-y-4 glass-float rounded-xl p-5 border border-primary/20 relative overflow-hidden"
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -20, scale: 0.95 }}
@@ -323,65 +323,125 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   ease: "easeInOut"
                 }}
               />
-              <div className="relative z-10">
+              <div className="relative z-10 space-y-4">
+                {/* Progress Bar Section */}
                 <motion.div
                   initial={{ scaleX: 0 }}
                   animate={{ scaleX: 1 }}
                   transition={{ duration: 0.3 }}
-                  className="origin-left"
+                  className="origin-left space-y-2"
                 >
-                  <Progress value={progress} aria-label="Ingestion progress" className="h-2" />
+                  <div className="flex items-center justify-between">
+                    <motion.div 
+                      className="flex items-center gap-2"
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <span className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-full font-medium">
+                        {status.stage ? stageLabel[status.stage] : status.status}
+                      </span>
+                    </motion.div>
+                    <motion.span 
+                      className="text-sm font-medium text-primary"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ delay: 0.2 }}
+                    >
+                      {progress.toFixed(1)}%
+                    </motion.span>
+                  </div>
+                  <Progress value={progress} aria-label="Ingestion progress" className="h-3" />
                 </motion.div>
-                <div className="text-sm text-muted-foreground grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mt-3">
+
+                {/* Status Information Grid */}
+                <motion.div 
+                  className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                >
+                  {/* Upload Status */}
                   <motion.div 
-                    className="flex items-center gap-2"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.1 }}
-                  >
-                    <span className="text-xs bg-primary/20 text-primary px-2 py-1 rounded-full">Stage</span>
-                    <span className="font-medium">{status.stage ? stageLabel[status.stage] : status.status}</span>
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.2 }}
-                  >
-                    <span className="text-xs">Uploaded:</span> {bytes(status.uploaded)} / {bytes(status.total ?? undefined)}
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.3 }}
-                  >
-                    <span className="text-xs">Rows:</span> {status.rows_processed ?? 0} / {status.rows_total ?? 0}
-                  </motion.div>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
+                    className="bg-background/50 backdrop-blur-sm rounded-lg p-3 border border-border/50"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
                     transition={{ delay: 0.4 }}
                   >
-                    <span className="text-xs">Inserted:</span> {status.rows_inserted ?? 0} · <span className="text-xs">Skipped:</span> {status.rows_skipped ?? 0}
+                    <div className="text-xs text-muted-foreground mb-1">Data Uploaded</div>
+                    <div className="font-medium">
+                      {bytes(status.uploaded)} / {bytes(status.total ?? undefined)}
+                    </div>
                   </motion.div>
-                </div>
+
+                  {/* Row Processing Status */}
+                  <motion.div 
+                    className="bg-background/50 backdrop-blur-sm rounded-lg p-3 border border-border/50"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.5 }}
+                  >
+                    <div className="text-xs text-muted-foreground mb-1">Rows Processed</div>
+                    <div className="font-medium">
+                      {status.rows_processed ?? 0} / {status.rows_total ?? 0}
+                    </div>
+                  </motion.div>
+
+                  {/* Insert Status */}
+                  <motion.div 
+                    className="bg-background/50 backdrop-blur-sm rounded-lg p-3 border border-border/50"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.6 }}
+                  >
+                    <div className="text-xs text-muted-foreground mb-1">Rows Inserted</div>
+                    <div className="font-medium text-green-600">
+                      {status.rows_inserted ?? 0}
+                    </div>
+                  </motion.div>
+
+                  {/* Skip Status */}
+                  <motion.div 
+                    className="bg-background/50 backdrop-blur-sm rounded-lg p-3 border border-border/50"
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.7 }}
+                  >
+                    <div className="text-xs text-muted-foreground mb-1">Rows Skipped</div>
+                    <div className="font-medium text-amber-600">
+                      {status.rows_skipped ?? 0}
+                    </div>
+                  </motion.div>
+                </motion.div>
+
+                {/* Completion Status */}
                 {isComplete && (
                   <motion.div 
-                    className="text-sm font-medium text-primary flex items-center gap-2 mt-2"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
+                    className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3"
+                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
                   >
-                    ✅ Complete!
+                    <div className="text-green-600 text-lg">✅</div>
+                    <div>
+                      <div className="font-medium text-green-800 dark:text-green-200">Processing Complete!</div>
+                      <div className="text-sm text-green-600 dark:text-green-400">Your data has been successfully ingested.</div>
+                    </div>
                   </motion.div>
                 )}
+
                 {isFailed && (
                   <motion.div 
-                    className="text-sm text-destructive font-medium flex items-center gap-2 mt-2"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.3 }}
+                    className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3"
+                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
                   >
-                    ❌ Failed: {status.error}
+                    <div className="text-red-600 text-lg">❌</div>
+                    <div>
+                      <div className="font-medium text-red-800 dark:text-red-200">Processing Failed</div>
+                      <div className="text-sm text-red-600 dark:text-red-400">{status.error}</div>
+                    </div>
                   </motion.div>
                 )}
               </div>
