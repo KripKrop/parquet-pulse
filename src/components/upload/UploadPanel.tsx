@@ -22,6 +22,8 @@ const stageLabel: Record<NonNullable<JobStatus["stage"]>, string> = {
 export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
   const [file, setFile] = useState<File | null>(null);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const { status, progress, isComplete, isFailed } = useJobStatus(jobId || undefined);
 
@@ -32,9 +34,13 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
       onComplete?.();
       setJobId(null);
       setFile(null);
+      setIsUploading(false);
+      setUploadProgress(0);
     }
     if (isFailed && status?.error) {
       toast({ title: "Ingestion failed", description: status.error, variant: "destructive" });
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   }, [isComplete, isFailed, status?.error, jobId]);
 
@@ -43,23 +49,66 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
   };
 
   const onSubmit = async () => {
-    if (!file) return;
+    if (!file || isUploading) return;
+    
+    setIsUploading(true);
+    setUploadProgress(0);
+    
     try {
       const fd = new FormData();
       fd.append("file", file);
-      const res = await request<{ job_id: string; skipped?: boolean }>("/upload", {
-        method: "POST",
-        body: fd,
+      
+      // Create XMLHttpRequest for upload progress tracking
+      const xhr = new XMLHttpRequest();
+      
+      const uploadPromise = new Promise<{ job_id: string; skipped?: boolean }>((resolve, reject) => {
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const percentComplete = (e.loaded / e.total) * 100;
+            setUploadProgress(percentComplete);
+          }
+        });
+        
+        xhr.addEventListener('load', () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              const response = JSON.parse(xhr.responseText);
+              resolve(response);
+            } catch (e) {
+              reject(new Error('Invalid JSON response'));
+            }
+          } else {
+            reject(new Error(`Upload failed: ${xhr.status}`));
+          }
+        });
+        
+        xhr.addEventListener('error', () => {
+          reject(new Error('Network error during upload'));
+        });
+        
+        xhr.open('POST', '/upload');
+        xhr.setRequestHeader('x-api-key', localStorage.getItem('ucpv.apiKey') || 'changeme');
+        xhr.send(fd);
       });
+      
+      const res = await uploadPromise;
+      
       if (res.skipped) {
         toast({ title: "Already ingested", description: file.name });
         setFile(null);
+        setIsUploading(false);
+        setUploadProgress(0);
         return;
       }
+      
       setJobId(res.job_id);
-      toast({ title: "Upload started", description: file.name });
+      toast({ title: "Upload completed", description: "Processing started..." });
+      setUploadProgress(100);
+      
     } catch (e: any) {
       toast({ title: "Upload failed", description: String(e.message || e), variant: "destructive" });
+      setIsUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -67,10 +116,14 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    if (isUploading) return; // Prevent new file selection during upload
     if (e.dataTransfer.files?.[0]) onDrop(e.dataTransfer.files[0]);
   };
 
-  const handleBrowse = () => inputRef.current?.click();
+  const handleBrowse = () => {
+    if (isUploading) return; // Prevent browsing during upload
+    inputRef.current?.click();
+  };
 
   return (
     <motion.div
@@ -92,18 +145,21 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
           <motion.div
             onDragOver={(e) => e.preventDefault()}
             onDrop={handleDrop}
-            className="border-2 border-dashed rounded-lg p-8 text-center glass-button transition-all duration-300 cursor-pointer liquid-bounce relative overflow-hidden group"
+            className={`border-2 border-dashed rounded-lg p-8 text-center glass-button transition-all duration-300 liquid-bounce relative overflow-hidden group ${
+              isUploading ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'
+            }`}
             onClick={handleBrowse}
             aria-label="Drop file here or click to browse"
-            whileHover={{ 
+            whileHover={!isUploading ? { 
               scale: 1.02, 
               borderColor: "hsl(var(--primary) / 0.6)",
               boxShadow: "0 10px 40px -10px hsl(var(--primary) / 0.3)"
-            }}
-            whileTap={{ scale: 0.98 }}
+            } : {}}
+            whileTap={!isUploading ? { scale: 0.98 } : {}}
             initial={{ borderColor: "hsl(var(--border))" }}
             animate={{ 
-              borderColor: file ? "hsl(var(--primary) / 0.5)" : "hsl(var(--border))"
+              borderColor: isUploading ? "hsl(var(--primary) / 0.8)" : 
+                          file ? "hsl(var(--primary) / 0.5)" : "hsl(var(--border))"
             }}
           >
             <motion.div
@@ -116,22 +172,35 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
               type="file"
               accept=".csv,text/csv,application/csv"
               className="hidden"
-              onChange={(e) => e.target.files?.[0] && onDrop(e.target.files[0])}
+              disabled={isUploading}
+              onChange={(e) => e.target.files?.[0] && !isUploading && onDrop(e.target.files[0])}
             />
             <motion.div 
               className="relative z-10"
               animate={{ 
-                color: file ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"
+                color: isUploading ? "hsl(var(--primary))" : 
+                       file ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"
               }}
             >
               <motion.div
                 className="text-sm font-medium mb-2"
-                animate={{ scale: file ? 1.05 : 1 }}
+                animate={{ scale: file || isUploading ? 1.05 : 1 }}
                 transition={{ duration: 0.2 }}
               >
-                {file ? `✓ Selected: ${file.name}` : "📁 Drop a CSV file here, or click to browse"}
+                {isUploading ? `🚀 Uploading: ${file?.name}` :
+                 file ? `✓ Selected: ${file.name}` : "📁 Drop a CSV file here, or click to browse"}
               </motion.div>
-              {!file && (
+              {isUploading && (
+                <motion.div
+                  className="text-xs opacity-70 mt-2"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 0.7, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  Upload Progress: {Math.round(uploadProgress)}%
+                </motion.div>
+              )}
+              {!file && !isUploading && (
                 <motion.div
                   className="text-xs opacity-70"
                   initial={{ opacity: 0 }}
@@ -153,14 +222,27 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
             >
               <Button 
                 onClick={onSubmit} 
-                disabled={!file} 
-                className="liquid-bounce button-smooth hover-glow"
-                variant={file ? "default" : "secondary"}
+                disabled={!file || isUploading} 
+                className="liquid-bounce button-smooth hover-glow relative overflow-hidden"
+                variant={file && !isUploading ? "default" : "secondary"}
               >
-                🚀 Upload
+                {isUploading ? (
+                  <>
+                    <motion.div
+                      className="mr-2"
+                      animate={{ rotate: 360 }}
+                      transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                    >
+                      ⭮
+                    </motion.div>
+                    Uploading...
+                  </>
+                ) : (
+                  <>🚀 Upload</>
+                )}
               </Button>
             </motion.div>
-            {file && (
+            {file && !isUploading && (
               <motion.div 
                 whileHover={{ scale: 1.05 }} 
                 whileTap={{ scale: 0.95 }}
@@ -173,12 +255,51 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   variant="ghost" 
                   onClick={() => setFile(null)} 
                   className="liquid-bounce hover:text-destructive"
+                  disabled={isUploading}
                 >
                   ✕ Clear
                 </Button>
               </motion.div>
             )}
           </div>
+
+          {/* Upload Progress Bar */}
+          {isUploading && uploadProgress < 100 && (
+            <motion.div 
+              className="space-y-3 glass-float rounded-xl p-4 border border-primary/20 relative overflow-hidden"
+              initial={{ opacity: 0, y: 20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ duration: 0.4, ease: "easeOut" }}
+            >
+              <motion.div
+                className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary/10 to-primary/5"
+                animate={{
+                  x: ["-100%", "100%"],
+                  opacity: [0, 0.5, 0]
+                }}
+                transition={{
+                  duration: 2,
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              />
+              <div className="relative z-10">
+                <motion.div
+                  initial={{ scaleX: 0 }}
+                  animate={{ scaleX: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="origin-left"
+                >
+                  <Progress value={uploadProgress} aria-label="Upload progress" className="h-3" />
+                </motion.div>
+                <div className="flex items-center justify-between mt-2 text-sm">
+                  <span className="text-primary font-medium">Uploading file...</span>
+                  <span className="text-muted-foreground">{Math.round(uploadProgress)}%</span>
+                </div>
+              </div>
+            </motion.div>
+          )}
 
           {status && (
             <motion.div 
