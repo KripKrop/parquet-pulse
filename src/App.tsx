@@ -10,36 +10,41 @@ import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import AppHeader from "./components/layout/AppHeader";
 import { ApiClientProvider } from "./contexts/ApiClientContext";
+import { UploadProvider } from "./contexts/UploadContext";
+import { FloatingUploadWidget } from "./components/upload/FloatingUploadWidget";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <ApiClientProvider>
-      <QueryClientProvider client={queryClient}>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="min-h-screen"
-            >
-              <AppHeader />
-              <AnimatePresence mode="wait">
-                <Routes>
-                  <Route path="/" element={<Index />} />
-                  <Route path="/settings" element={<Settings />} />
-                  {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                  <Route path="*" element={<NotFound />} />
-                </Routes>
-              </AnimatePresence>
-            </motion.div>
-          </BrowserRouter>
-        </TooltipProvider>
-      </QueryClientProvider>
+      <UploadProvider>
+        <QueryClientProvider client={queryClient}>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.3 }}
+                className="min-h-screen"
+              >
+                <AppHeader />
+                <AnimatePresence mode="wait">
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/settings" element={<Settings />} />
+                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </AnimatePresence>
+                <FloatingUploadWidget />
+              </motion.div>
+            </BrowserRouter>
+          </TooltipProvider>
+        </QueryClientProvider>
+      </UploadProvider>
     </ApiClientProvider>
   </ThemeProvider>
 );

@@ -1,14 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { toast } from "@/hooks/use-toast";
-import { request, getApiConfig } from "@/services/apiClient";
-import { useJobStatus } from "@/hooks/useJobStatus";
-import type { JobStatus } from "@/types/api";
 import { motion } from "framer-motion";
+import { useUpload } from "@/contexts/UploadContext";
 
-const stageLabel: Record<NonNullable<JobStatus["stage"]>, string> = {
+const stageLabel: Record<string, string> = {
   uploading: "Uploading",
   queued: "Queued",
   reading: "Reading",
@@ -20,178 +17,25 @@ const stageLabel: Record<NonNullable<JobStatus["stage"]>, string> = {
 };
 
 export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { status, progress, isComplete, isFailed } = useJobStatus(jobId || undefined);
+  const { 
+    file, 
+    setFile, 
+    isUploading, 
+    uploadProgress, 
+    status, 
+    progress, 
+    isComplete, 
+    isFailed, 
+    startUpload 
+  } = useUpload();
 
-  // Audio ref for sound notifications
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-
-  // Request notification permission and preload audio
+  // Call onComplete when upload finishes
   useEffect(() => {
-    // Request notification permission
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission().then(permission => {
-        console.log('Notification permission:', permission);
-      });
-    }
-
-    // Preload audio
-    try {
-      audioRef.current = new Audio('/sounds/upload-complete.mp3');
-      audioRef.current.volume = 0.4;
-      audioRef.current.preload = 'auto';
-      
-      // Test if audio can be loaded
-      audioRef.current.addEventListener('canplaythrough', () => {
-        console.log('Notification sound loaded successfully');
-      });
-      
-      audioRef.current.addEventListener('error', (e) => {
-        console.error('Failed to load notification sound:', e);
-      });
-    } catch (error) {
-      console.error('Error creating audio element:', error);
-    }
-
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.removeEventListener('canplaythrough', () => {});
-        audioRef.current.removeEventListener('error', () => {});
-      }
-    };
-  }, []);
-
-  // Generate and play notification sound using Web Audio API
-  const playNotificationSound = async () => {
-    try {
-      // Create audio context
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
-      
-      // Create a pleasant notification sound (two-tone chime)
-      const createTone = (frequency: number, duration: number, startTime: number) => {
-        const oscillator = audioContext.createOscillator();
-        const gainNode = audioContext.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(audioContext.destination);
-        
-        oscillator.frequency.setValueAtTime(frequency, audioContext.currentTime + startTime);
-        oscillator.type = 'sine';
-        
-        // Smooth envelope
-        gainNode.gain.setValueAtTime(0, audioContext.currentTime + startTime);
-        gainNode.gain.linearRampToValueAtTime(0.1, audioContext.currentTime + startTime + 0.05);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + startTime + duration);
-        
-        oscillator.start(audioContext.currentTime + startTime);
-        oscillator.stop(audioContext.currentTime + startTime + duration);
-      };
-      
-      // Play two pleasant tones
-      createTone(800, 0.2, 0);    // First tone (higher)
-      createTone(600, 0.3, 0.15); // Second tone (lower)
-      
-      console.log('Notification sound played successfully');
-    } catch (error) {
-      console.error('Failed to play notification sound:', error);
-      
-      // Fallback: try using existing audio file
-      try {
-        if (audioRef.current) {
-          audioRef.current.currentTime = 0;
-          await audioRef.current.play();
-          console.log('Fallback audio file played');
-        }
-      } catch (fallbackError) {
-        console.error('All audio methods failed:', fallbackError);
-      }
-    }
-  };
-
-  // Show browser notification
-  const showBrowserNotification = (title: string, body: string, isSuccess = true) => {
-    console.log('Attempting to show notification:', title, body);
-    
-    if (!('Notification' in window)) {
-      console.warn('This browser does not support notifications');
-      return;
-    }
-
-    if (Notification.permission === 'granted') {
-      try {
-        const notification = new Notification(title, {
-          body,
-          icon: '/favicon.ico',
-          badge: '/favicon.ico',
-          tag: 'upload-status',
-          requireInteraction: false,
-          silent: false
-        });
-
-        // Auto-close after 5 seconds
-        setTimeout(() => {
-          notification.close();
-        }, 5000);
-
-        console.log('Notification created successfully');
-      } catch (error) {
-        console.error('Failed to create notification:', error);
-      }
-    } else if (Notification.permission === 'denied') {
-      console.warn('Notifications are denied by user');
-    } else {
-      console.log('Notification permission not granted, requesting...');
-      Notification.requestPermission().then(permission => {
-        if (permission === 'granted') {
-          showBrowserNotification(title, body, isSuccess);
-        }
-      });
-    }
-  };
-
-  // Notify on completion / failure once
-  useEffect(() => {
-    if (isComplete && jobId) {
-      console.log('Upload completed, showing notifications');
-      toast({ title: "Ingestion complete" });
-      
-      // Browser notification and sound for completion
-      showBrowserNotification(
-        'Upload Complete ✅',
-        `Your file "${file?.name || 'upload'}" has been successfully processed.`,
-        true
-      );
-      
-      // Play sound with slight delay to ensure notification is shown first
-      setTimeout(() => {
-        playNotificationSound();
-      }, 100);
-      
+    if (isComplete) {
       onComplete?.();
-      setJobId(null);
-      setFile(null);
-      setIsUploading(false);
-      setUploadProgress(0);
     }
-    if (isFailed && status?.error) {
-      console.log('Upload failed, showing error notification');
-      toast({ title: "Ingestion failed", description: status.error, variant: "destructive" });
-      
-      // Browser notification for failure (no sound for errors)
-      showBrowserNotification(
-        'Upload Failed ❌',
-        `Processing failed: ${status.error}`,
-        false
-      );
-      
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
-  }, [isComplete, isFailed, status?.error, jobId, file?.name]);
+  }, [isComplete, onComplete]);
 
   const onDrop = (f: File) => {
     setFile(f);
@@ -199,68 +43,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
 
   const onSubmit = async () => {
     if (!file || isUploading) return;
-    
-    setIsUploading(true);
-    setUploadProgress(0);
-    
-    try {
-      const fd = new FormData();
-      fd.append("file", file);
-      
-      // Create XMLHttpRequest for upload progress tracking
-      const xhr = new XMLHttpRequest();
-      
-      const uploadPromise = new Promise<{ job_id: string; skipped?: boolean }>((resolve, reject) => {
-        xhr.upload.addEventListener('progress', (e) => {
-          if (e.lengthComputable) {
-            const percentComplete = (e.loaded / e.total) * 100;
-            setUploadProgress(percentComplete);
-          }
-        });
-        
-        xhr.addEventListener('load', () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            try {
-              const response = JSON.parse(xhr.responseText);
-              resolve(response);
-            } catch (e) {
-              reject(new Error('Invalid JSON response'));
-            }
-          } else {
-            reject(new Error(`Upload failed: ${xhr.status}`));
-          }
-        });
-        
-        xhr.addEventListener('error', () => {
-          reject(new Error('Network error during upload'));
-        });
-        
-        const { baseUrl, apiKey } = getApiConfig();
-        const uploadUrl = `${baseUrl.replace(/\/$/, '')}/upload`;
-        xhr.open('POST', uploadUrl);
-        xhr.setRequestHeader('x-api-key', apiKey);
-        xhr.send(fd);
-      });
-      
-      const res = await uploadPromise;
-      
-      if (res.skipped) {
-        toast({ title: "Already ingested", description: file.name });
-        setFile(null);
-        setIsUploading(false);
-        setUploadProgress(0);
-        return;
-      }
-      
-      setJobId(res.job_id);
-      toast({ title: "Upload completed", description: "Processing started..." });
-      setUploadProgress(100);
-      
-    } catch (e: any) {
-      toast({ title: "Upload failed", description: String(e.message || e), variant: "destructive" });
-      setIsUploading(false);
-      setUploadProgress(0);
-    }
+    await startUpload(file);
   };
 
   const bytes = (n?: number | null) => (n ? new Intl.NumberFormat().format(n) : "-");
