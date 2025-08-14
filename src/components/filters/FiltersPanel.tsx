@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useCallback } from "react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,13 @@ export const FiltersPanel: React.FC<{
   const [search, setSearch] = useState<Record<string, string>>({});
   const debounced = useDebounce(search, 200);
   const [facets, setFacets] = useState<Record<string, FacetValue[]>>({});
+  const [visibleCounts, setVisibleCounts] = useState<Record<string, number>>({});
   const [totalRows, setTotalRows] = useState<number>(0);
   const [loading, setLoading] = useState<Record<string, boolean>>({});
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const INITIAL_VISIBLE_COUNT = 50;
+  const LOAD_MORE_COUNT = 50;
 
   const fetchFacets = async (visibleColumns: string[]) => {
     // Abort any pending request
@@ -97,8 +101,33 @@ export const FiltersPanel: React.FC<{
   useEffect(() => {
     if (refreshKey > 0) {
       setFacets({});
+      setVisibleCounts({});
     }
   }, [refreshKey]);
+
+  // Initialize visible counts when new columns are opened
+  useEffect(() => {
+    const newVisibleCounts = { ...visibleCounts };
+    open.forEach(col => {
+      if (!(col in newVisibleCounts)) {
+        newVisibleCounts[col] = INITIAL_VISIBLE_COUNT;
+      }
+    });
+    setVisibleCounts(newVisibleCounts);
+  }, [open]);
+
+  const loadMoreValues = useCallback((col: string) => {
+    setVisibleCounts(prev => ({
+      ...prev,
+      [col]: (prev[col] || INITIAL_VISIBLE_COUNT) + LOAD_MORE_COUNT
+    }));
+  }, []);
+
+  const getVisibleFacets = useCallback((col: string) => {
+    const allFacets = facets[col] || [];
+    const visibleCount = visibleCounts[col] || INITIAL_VISIBLE_COUNT;
+    return allFacets.slice(0, visibleCount);
+  }, [facets, visibleCounts]);
 
   const toggleValue = (col: string, val: string) => {
     const cur = new Set(filters[col] || []);
@@ -262,38 +291,56 @@ export const FiltersPanel: React.FC<{
                         </Button>
                       </motion.div>
                     </div>
-                     <div className="flex flex-wrap gap-2 max-h-40 overflow-auto">
-                       <AnimatePresence>
-                         {(facets[col] || []).map((facet, valIndex) => {
-                           const isSelected = (filters[col] || []).includes(facet.value);
-                           return (
-                             <motion.button
-                               key={facet.value}
-                               onClick={() => toggleValue(col, facet.value)}
-                               className={`px-2 py-1 rounded border text-sm transition-all duration-200 hover:scale-105 flex items-center gap-1 ${
-                                 isSelected ? "bg-accent shadow-md" : "hover:bg-accent/50"
-                               }`}
-                               initial={{ opacity: 0, scale: 0.8 }}
-                               animate={{ opacity: 1, scale: 1 }}
-                               exit={{ opacity: 0, scale: 0.8 }}
-                               transition={{ duration: 0.1, delay: valIndex * 0.02 }}
-                               whileHover={{ scale: 1.05 }}
-                               whileTap={{ scale: 0.95 }}
-                             >
-                               <span>{facet.value}</span>
-                               <motion.span 
-                                 className="text-xs opacity-70 bg-background/50 px-1 rounded"
-                                 initial={{ scale: 0 }}
-                                 animate={{ scale: 1 }}
-                                 transition={{ duration: 0.2 }}
-                               >
-                                 <AnimatedCounter value={facet.count} />
-                               </motion.span>
-                             </motion.button>
-                           );
-                         })}
-                       </AnimatePresence>
-                     </div>
+                     <div className="space-y-2">
+                        <div className="flex flex-wrap gap-2 max-h-40 overflow-auto">
+                          {getVisibleFacets(col).map((facet, valIndex) => {
+                            const isSelected = (filters[col] || []).includes(facet.value);
+                            return (
+                              <motion.button
+                                key={facet.value}
+                                onClick={() => toggleValue(col, facet.value)}
+                                className={`px-2 py-1 rounded border text-sm transition-all duration-200 hover:scale-105 flex items-center gap-1 ${
+                                  isSelected ? "bg-accent shadow-md" : "hover:bg-accent/50"
+                                }`}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                transition={{ duration: 0.1, delay: Math.min(valIndex * 0.01, 0.5) }}
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                              >
+                                <span>{facet.value}</span>
+                                <motion.span 
+                                  className="text-xs opacity-70 bg-background/50 px-1 rounded"
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <AnimatedCounter value={facet.count} />
+                                </motion.span>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                        
+                        {(facets[col] || []).length > (visibleCounts[col] || INITIAL_VISIBLE_COUNT) && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="flex justify-center"
+                          >
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => loadMoreValues(col)}
+                              className="button-smooth text-xs"
+                            >
+                              Load {Math.min(LOAD_MORE_COUNT, (facets[col] || []).length - (visibleCounts[col] || INITIAL_VISIBLE_COUNT))} more values
+                            </Button>
+                          </motion.div>
+                        )}
+                      </div>
                     {(filters[col] || []).length > 0 && (
                       <motion.div 
                         className="flex flex-wrap gap-2 pt-2"
