@@ -217,6 +217,34 @@
   .scrollbar-thin::-webkit-scrollbar-thumb:hover {
     background-color: hsl(var(--primary) / 0.4);
   }
+
+  /* Enhanced scrollbar for virtualized lists */
+  .scrollbar-virtualized {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--border) / 0.6) transparent;
+  }
+
+  .scrollbar-virtualized::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  .scrollbar-virtualized::-webkit-scrollbar-track {
+    background: hsl(var(--muted) / 0.1);
+    border-radius: 4px;
+  }
+
+  .scrollbar-virtualized::-webkit-scrollbar-thumb {
+    background: hsl(var(--border) / 0.6);
+    border-radius: 4px;
+    border: 1px solid hsl(var(--background));
+    transition: all 0.2s ease;
+  }
+
+  .scrollbar-virtualized::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--border));
+    box-shadow: 0 2px 4px hsl(var(--foreground) / 0.1);
+  }
   
   @keyframes stagger-in {
     to {
