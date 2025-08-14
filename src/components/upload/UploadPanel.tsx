@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
-import { request } from "@/services/apiClient";
+import { request, getApiConfig } from "@/services/apiClient";
 import { useJobStatus } from "@/hooks/useJobStatus";
 import type { JobStatus } from "@/types/api";
 import { motion } from "framer-motion";
@@ -86,8 +86,10 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
           reject(new Error('Network error during upload'));
         });
         
-        xhr.open('POST', '/upload');
-        xhr.setRequestHeader('x-api-key', localStorage.getItem('ucpv.apiKey') || 'changeme');
+        const { baseUrl, apiKey } = getApiConfig();
+        const uploadUrl = `${baseUrl.replace(/\/$/, '')}/upload`;
+        xhr.open('POST', uploadUrl);
+        xhr.setRequestHeader('x-api-key', apiKey);
         xhr.send(fd);
       });
       
