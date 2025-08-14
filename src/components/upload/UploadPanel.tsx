@@ -27,10 +27,51 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
   const inputRef = useRef<HTMLInputElement>(null);
   const { status, progress, isComplete, isFailed } = useJobStatus(jobId || undefined);
 
+  // Request notification permission on component mount
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  // Play notification sound
+  const playNotificationSound = () => {
+    try {
+      const audio = new Audio('/sounds/upload-complete.mp3');
+      audio.volume = 0.4; // Professional volume level
+      audio.play().catch(console.error);
+    } catch (error) {
+      console.error('Failed to play notification sound:', error);
+    }
+  };
+
+  // Show browser notification
+  const showBrowserNotification = (title: string, body: string, isSuccess = true) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      new Notification(title, {
+        body,
+        icon: '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'upload-status',
+        requireInteraction: false,
+        silent: false
+      });
+    }
+  };
+
   // Notify on completion / failure once
   useEffect(() => {
     if (isComplete && jobId) {
       toast({ title: "Ingestion complete" });
+      
+      // Browser notification and sound for completion
+      showBrowserNotification(
+        'Upload Complete ✅',
+        `Your file "${file?.name || 'upload'}" has been successfully processed.`,
+        true
+      );
+      playNotificationSound();
+      
       onComplete?.();
       setJobId(null);
       setFile(null);
@@ -39,10 +80,18 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
     }
     if (isFailed && status?.error) {
       toast({ title: "Ingestion failed", description: status.error, variant: "destructive" });
+      
+      // Browser notification for failure (no sound for errors)
+      showBrowserNotification(
+        'Upload Failed ❌',
+        `Processing failed: ${status.error}`,
+        false
+      );
+      
       setIsUploading(false);
       setUploadProgress(0);
     }
-  }, [isComplete, isFailed, status?.error, jobId]);
+  }, [isComplete, isFailed, status?.error, jobId, file?.name]);
 
   const onDrop = (f: File) => {
     setFile(f);
