@@ -76,56 +76,26 @@ export const VirtualizedFilterList: React.FC<VirtualizedFilterListProps> = ({
   const selectedSet = useMemo(() => new Set(selectedValues), [selectedValues]);
   const listRef = useRef<List>(null);
 
-  // Chunked select all implementation to prevent UI blocking
+  // Optimized select all implementation
   const handleSelectAll = useCallback(async () => {
     if (isSelectingAll) return;
     
     setIsSelectingAll(true);
     
     try {
-      // For small datasets, process directly
-      if (facets.length <= 1000) {
-        onSelectAll();
-        return;
-      }
-      
-      // For large datasets, process in chunks to keep UI responsive
-      const allValues = facets.map(f => f.value);
-      const currentSelected = new Set(selectedValues);
-      const newValues = allValues.filter(value => !currentSelected.has(value));
-      
-      // Process in chunks
-      const chunkSize = 500;
-      const chunks = [];
-      for (let i = 0; i < newValues.length; i += chunkSize) {
-        chunks.push(newValues.slice(i, i + chunkSize));
-      }
-      
-      // Process each chunk with a small delay
-      for (let i = 0; i < chunks.length; i++) {
-        await new Promise(resolve => {
-          setTimeout(() => {
-            chunks[i].forEach(value => {
-              if (!currentSelected.has(value)) {
-                onToggleValue(value);
-                currentSelected.add(value);
-              }
-            });
-            resolve(void 0);
-          }, 0);
+      // Always use the onSelectAll callback which handles the batch update efficiently
+      await new Promise(resolve => {
+        requestAnimationFrame(() => {
+          onSelectAll();
+          resolve(void 0);
         });
-        
-        // Yield control every few chunks for very large datasets
-        if (i > 0 && i % 10 === 0) {
-          await new Promise(resolve => setTimeout(resolve, 10));
-        }
-      }
+      });
     } catch (error) {
       console.error('Error during select all:', error);
     } finally {
       setIsSelectingAll(false);
     }
-  }, [facets, selectedValues, onToggleValue, onSelectAll, isSelectingAll]);
+  }, [onSelectAll, isSelectingAll]);
 
   const itemData = useMemo(() => ({
     facets,
