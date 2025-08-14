@@ -7,6 +7,8 @@ import type { QueryBody, QueryResponse } from "@/types/api";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { motion, AnimatePresence } from "framer-motion";
+import { TableRowSkeleton } from "./TableRowSkeleton";
+import { useSmartPrefetch } from "@/hooks/useSmartPrefetch";
 
 export const DataTable: React.FC<{
   columnsList: string[];
@@ -23,7 +25,7 @@ export const DataTable: React.FC<{
     });
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetching, refetch } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isFetching, refetch, isLoading } = useInfiniteQuery({
     queryKey: ["query", filters, refreshKey],
     queryFn,
     initialPageParam: 0,
@@ -31,6 +33,8 @@ export const DataTable: React.FC<{
       const loaded = allPages.reduce((acc, p) => acc + p.rows.length, 0);
       return loaded < lastPage.total ? loaded : undefined;
     },
+    staleTime: 30000, // Keep data fresh for 30 seconds
+    gcTime: 300000, // Keep in cache for 5 minutes
   });
 
   // rebuild columns for table
@@ -52,12 +56,26 @@ export const DataTable: React.FC<{
   });
 
   const parentRef = useRef<HTMLDivElement>(null);
+  
+  // Smart prefetching hook
+  const { handleScroll } = useSmartPrefetch({
+    fetchNextPage,
+    hasNextPage,
+    isFetching,
+    threshold: 0.7, // Start prefetching at 70% scroll
+    prefetchThreshold: 40 // Or when 40 items remaining
+  });
+
   const rowVirtualizer = useVirtualizer({
-    count: rows.length + (hasNextPage ? 1 : 0),
+    count: rows.length + (hasNextPage ? 1 : 0) + (isLoading ? 8 : 0), // Add skeleton rows for initial loading
     getScrollElement: () => parentRef.current,
     estimateSize: () => 40,
-    getItemKey: (index) => table.getRowModel().rows[index]?.id ?? `loader-${index}`,
-    overscan: 10,
+    getItemKey: (index) => {
+      if (isLoading && index < 8) return `skeleton-${index}`;
+      const adjustedIndex = isLoading ? index - 8 : index;
+      return table.getRowModel().rows[adjustedIndex]?.id ?? `loader-${adjustedIndex}`;
+    },
+    overscan: 20, // Increased overscan for smoother scrolling
   });
 
   const virtualItems = rowVirtualizer.getVirtualItems();
@@ -71,12 +89,25 @@ export const DataTable: React.FC<{
   }, [filters, columnsList]);
 
   useEffect(() => {
+    const parentElement = parentRef.current;
+    if (!parentElement) return;
+
+    const onScroll = () => {
+      handleScroll(parentElement, rows.length, virtualItems);
+    };
+
+    parentElement.addEventListener('scroll', onScroll, { passive: true });
+    return () => parentElement.removeEventListener('scroll', onScroll);
+  }, [handleScroll, rows.length, virtualItems]);
+
+  useEffect(() => {
     const last = virtualItems[virtualItems.length - 1];
     if (!last) return;
-    if (last.index >= rows.length - 1 && hasNextPage && !isFetching) {
+    const adjustedIndex = isLoading ? last.index - 8 : last.index;
+    if (adjustedIndex >= rows.length - 1 && hasNextPage && !isFetching) {
       fetchNextPage();
     }
-  }, [virtualItems, rows.length, hasNextPage, isFetching, fetchNextPage]);
+  }, [virtualItems, rows.length, hasNextPage, isFetching, fetchNextPage, isLoading]);
 
 
   return (
@@ -165,47 +196,89 @@ export const DataTable: React.FC<{
           {paddingTop > 0 && <div style={{ height: paddingTop }} className="col-span-full" />}
 
           {virtualItems.map((vi) => {
-            const isLoader = hasNextPage && vi.index === rows.length;
+            // Handle skeleton loading for initial load
+            if (isLoading && vi.index < 8) {
+              return (
+                <TableRowSkeleton 
+                  key={`skeleton-${vi.index}`}
+                  columnCount={columnsList.length}
+                  index={vi.index}
+                />
+              );
+            }
+
+            const adjustedIndex = isLoading ? vi.index - 8 : vi.index;
+            const isLoader = hasNextPage && adjustedIndex === rows.length;
+            
             if (isLoader) {
               return (
                 <motion.div 
                   key={`loader-${vi.index}`} 
                   className="col-span-full px-3 py-2 h-10 text-sm text-muted-foreground border-b flex items-center gap-2"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ duration: 0.3 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
                 >
-                  <LoadingSpinner size="sm" />
-                  Loading more data...
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  >
+                    <LoadingSpinner size="sm" />
+                  </motion.div>
+                  <motion.span
+                    initial={{ opacity: 0.6 }}
+                    animate={{ opacity: [0.6, 1, 0.6] }}
+                    transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                  >
+                    Streaming more data...
+                  </motion.span>
                 </motion.div>
               );
             }
-            if (vi.index >= rows.length) return null;
+            
+            if (adjustedIndex >= rows.length) return null;
 
-            const row = table.getRowModel().rows[vi.index];
+            const row = table.getRowModel().rows[adjustedIndex];
+            if (!row) return null;
+
             return (
               <motion.div 
                 key={row.id} 
                 className="contents"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.1, delay: Math.min(vi.index * 0.01, 0.3) }}
+                initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ 
+                  duration: 0.3, 
+                  delay: Math.min(adjustedIndex * 0.02, 0.4),
+                  ease: "easeOut"
+                }}
               >
                 {row.getVisibleCells().map((cell, cellIndex) => (
                   <motion.div
                     key={cell.id}
                     className="px-4 py-3 h-12 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 hover:bg-accent/30 hover:backdrop-blur-sm liquid-bounce hover:shadow-sm group cursor-default"
                     title={String((row as any).original[cell.column.id] ?? "")}
+                    initial={{ opacity: 0, x: -5 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ 
+                      duration: 0.2, 
+                      delay: cellIndex * 0.01,
+                      ease: "easeOut"
+                    }}
                     whileHover={{ 
                       scale: 1.005,
                       backgroundColor: "hsl(var(--accent) / 0.4)",
                       boxShadow: "0 2px 8px -2px hsl(var(--primary) / 0.1)"
                     }}
-                    transition={{ duration: 0.15 }}
                   >
-                    <span className="group-hover:text-foreground transition-colors duration-150">
+                    <motion.span 
+                      className="group-hover:text-foreground transition-colors duration-150"
+                      initial={{ opacity: 0.8 }}
+                      animate={{ opacity: 1 }}
+                      transition={{ duration: 0.2 }}
+                    >
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                    </span>
+                    </motion.span>
                   </motion.div>
                 ))}
               </motion.div>
