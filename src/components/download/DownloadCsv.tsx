@@ -4,6 +4,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Progress } from "@/components/ui/progress";
 import { toast } from "@/hooks/use-toast";
 import { request } from "@/services/apiClient";
+import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import { motion } from "framer-motion";
 
 function toCsvValue(v: any) {
   const s = v == null ? "" : String(v);
@@ -101,24 +103,81 @@ export const DownloadCsv: React.FC<{
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="secondary">Download CSV</Button>
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Button variant="secondary" className="button-smooth liquid-bounce">
+            📥 Download CSV
+          </Button>
+        </motion.div>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Export CSV</DialogTitle>
-        </DialogHeader>
-        <div className="space-y-3">
-          <Progress value={busy ? undefined : 0} aria-label="download progress" />
-          <div className="text-sm text-muted-foreground">Downloaded {count} rows…</div>
-        </div>
-        <DialogFooter>
-          <Button variant="secondary" onClick={() => setOpen(false)} disabled={busy}>Close</Button>
-          {busy ? (
-            <Button variant="destructive" onClick={cancel}>Cancel</Button>
-          ) : (
-            <Button onClick={start}>Start</Button>
-          )}
-        </DialogFooter>
+      <DialogContent className="glass-panel border-0 shadow-2xl">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <DialogHeader>
+            <DialogTitle className="text-gradient-primary">📥 Export CSV</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <motion.div
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: 1 }}
+              transition={{ duration: 0.3 }}
+              className="origin-left"
+            >
+              <Progress value={busy ? undefined : 0} aria-label="download progress" className="h-2" />
+            </motion.div>
+            <motion.div 
+              className="text-sm text-muted-foreground flex items-center gap-2"
+              animate={{ opacity: busy ? 1 : 0.7 }}
+            >
+              {busy && <LoadingSpinner size="sm" />}
+              Downloaded <motion.strong
+                key={count}
+                initial={{ scale: 1.2, color: "hsl(var(--primary))" }}
+                animate={{ scale: 1, color: "hsl(var(--foreground))" }}
+                transition={{ duration: 0.3 }}
+              >
+                {count}
+              </motion.strong> rows…
+            </motion.div>
+          </div>
+          <DialogFooter className="gap-2">
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <Button 
+                variant="ghost" 
+                onClick={() => setOpen(false)} 
+                disabled={busy}
+                className="button-smooth"
+              >
+                Close
+              </Button>
+            </motion.div>
+            {busy ? (
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button 
+                  variant="destructive" 
+                  onClick={cancel}
+                  className="button-smooth"
+                >
+                  🛑 Cancel
+                </Button>
+              </motion.div>
+            ) : (
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button 
+                  onClick={start}
+                  className="button-smooth hover-glow"
+                >
+                  🚀 Start Download
+                </Button>
+              </motion.div>
+            )}
+          </DialogFooter>
+        </motion.div>
       </DialogContent>
     </Dialog>
   );

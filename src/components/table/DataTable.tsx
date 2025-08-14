@@ -81,29 +81,39 @@ export const DataTable: React.FC<{
 
   return (
     <motion.div 
-      className="glass-table liquid-scale overflow-hidden"
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.3 }}
+      className="glass-table liquid-scale overflow-hidden rounded-xl border-0 shadow-2xl"
+      initial={{ opacity: 0, scale: 0.98, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
     >
-      <div ref={parentRef} className="max-h-[70vh] overflow-auto">
-        <div className="sticky top-0 z-10 glass-panel border-b">
+      <div ref={parentRef} className="max-h-[70vh] overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+        <div className="sticky top-0 z-10 glass-panel border-b backdrop-blur-xl bg-background/80">
           <div
             className="grid min-w-full w-max"
             style={{ gridTemplateColumns: `repeat(${columnsList.length}, 220px)` }}
           >
-            {table.getHeaderGroups().map((hg) => (
-              <div key={hg.id} className="contents">
-                {hg.headers.map((h) => (
-                  <div
+            {table.getHeaderGroups().map((hg, groupIndex) => (
+              <motion.div 
+                key={hg.id} 
+                className="contents"
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: groupIndex * 0.05 }}
+              >
+                {hg.headers.map((h, headerIndex) => (
+                  <motion.div
                     key={h.id}
-                    className="px-3 py-2 h-10 text-sm font-medium whitespace-nowrap overflow-hidden text-ellipsis"
+                    className="px-4 py-3 h-12 text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-gradient-primary hover:bg-accent/20 transition-all duration-200"
                     title={String(h.column.columnDef.header as any)}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: headerIndex * 0.02 }}
+                    whileHover={{ scale: 1.02 }}
                   >
                     {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
-                  </div>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
@@ -174,17 +184,31 @@ export const DataTable: React.FC<{
 
             const row = table.getRowModel().rows[vi.index];
             return (
-              <div key={row.id} className="contents">
-                {row.getVisibleCells().map((cell) => (
-                  <div
+              <motion.div 
+                key={row.id} 
+                className="contents"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.1, delay: Math.min(vi.index * 0.01, 0.3) }}
+              >
+                {row.getVisibleCells().map((cell, cellIndex) => (
+                  <motion.div
                     key={cell.id}
-                    className="px-3 py-2 h-10 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 hover:bg-accent/20 hover:backdrop-blur-sm liquid-bounce"
+                    className="px-4 py-3 h-12 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 hover:bg-accent/30 hover:backdrop-blur-sm liquid-bounce hover:shadow-sm group cursor-default"
                     title={String((row as any).original[cell.column.id] ?? "")}
+                    whileHover={{ 
+                      scale: 1.005,
+                      backgroundColor: "hsl(var(--accent) / 0.4)",
+                      boxShadow: "0 2px 8px -2px hsl(var(--primary) / 0.1)"
+                    }}
+                    transition={{ duration: 0.15 }}
                   >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </div>
+                    <span className="group-hover:text-foreground transition-colors duration-150">
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </span>
+                  </motion.div>
                 ))}
-              </div>
+              </motion.div>
             );
           })}
 

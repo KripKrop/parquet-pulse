@@ -101,13 +101,21 @@ const Index = () => {
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient-primary">
               CSV Viewer Data
             </h1>
-            <div className="flex items-center gap-2">
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="destructive" asChild className="button-smooth">
-                  <Link to="/settings">Delete All Data</Link>
+            <div className="flex items-center gap-3">
+              <motion.div 
+                whileHover={{ scale: 1.05, rotate: 1 }} 
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
+                <Button variant="destructive" asChild className="button-smooth hover-glow liquid-bounce">
+                  <Link to="/settings">🗑️ Delete All Data</Link>
                 </Button>
               </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.div 
+                whileHover={{ scale: 1.05, y: -2 }} 
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
                 <BulkDeleteDialog
                   filters={filters}
                   onDeleted={() => {
@@ -117,7 +125,11 @@ const Index = () => {
                   }}
                 />
               </motion.div>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.div 
+                whileHover={{ scale: 1.05, y: -2 }} 
+                whileTap={{ scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+              >
                 <DownloadCsv filters={filters} fields={columns} />
               </motion.div>
             </div>
