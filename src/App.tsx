@@ -11,7 +11,9 @@ import Settings from "./pages/Settings";
 import AppHeader from "./components/layout/AppHeader";
 import { ApiClientProvider } from "./contexts/ApiClientContext";
 import { UploadProvider } from "./contexts/UploadContext";
+import { DownloadProvider } from "./contexts/DownloadContext";
 import { FloatingUploadWidget } from "./components/upload/FloatingUploadWidget";
+import { FloatingDownloadWidgets } from "./components/download/FloatingDownloadWidgets";
 
 const queryClient = new QueryClient();
 
@@ -19,31 +21,34 @@ const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
     <ApiClientProvider>
       <UploadProvider>
-        <QueryClientProvider client={queryClient}>
-          <TooltipProvider>
-            <Toaster />
-            <Sonner />
-            <BrowserRouter>
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.3 }}
-                className="min-h-screen"
-              >
-                <AppHeader />
-                <AnimatePresence mode="wait">
-                  <Routes>
-                    <Route path="/" element={<Index />} />
-                    <Route path="/settings" element={<Settings />} />
-                    {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </AnimatePresence>
-                <FloatingUploadWidget />
-              </motion.div>
-            </BrowserRouter>
-          </TooltipProvider>
-        </QueryClientProvider>
+        <DownloadProvider>
+          <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+              <Toaster />
+              <Sonner />
+              <BrowserRouter>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="min-h-screen"
+                >
+                  <AppHeader />
+                  <AnimatePresence mode="wait">
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/settings" element={<Settings />} />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </AnimatePresence>
+                  <FloatingUploadWidget />
+                  <FloatingDownloadWidgets />
+                </motion.div>
+              </BrowserRouter>
+            </TooltipProvider>
+          </QueryClientProvider>
+        </DownloadProvider>
       </UploadProvider>
     </ApiClientProvider>
   </ThemeProvider>
