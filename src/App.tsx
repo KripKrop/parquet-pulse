@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
+import Login from "./pages/Login";
 import AppHeader from "./components/layout/AppHeader";
 import { ApiClientProvider } from "./contexts/ApiClientContext";
 import { UploadProvider } from "./contexts/UploadContext";
@@ -37,6 +38,7 @@ const App = () => (
                   <AnimatePresence mode="wait">
                     <Routes>
                       <Route path="/" element={<Index />} />
+                      <Route path="/login" element={<Login />} />
                       <Route path="/settings" element={<Settings />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
