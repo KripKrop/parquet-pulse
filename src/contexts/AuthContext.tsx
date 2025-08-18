@@ -90,6 +90,8 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     
     if (!isAuthenticated && !isLoginPage && !isSettingsThemeOnly) {
       navigate("/login", { replace: true });
+    } else if (isAuthenticated && isLoginPage) {
+      navigate("/", { replace: true });
     }
   }, [isAuthenticated, location.pathname, navigate]);
 
