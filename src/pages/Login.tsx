@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,12 +26,7 @@ const Login = () => {
         title: "Welcome back!",
         description: "You have successfully logged in.",
       });
-      // Set login state
-      localStorage.setItem("isLoggedIn", "true");
-      // Redirect to home page
-      setTimeout(() => {
-        window.location.href = "/";
-      }, 500);
+      login();
     }, 2000);
   };
 

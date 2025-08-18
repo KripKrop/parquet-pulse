@@ -9,6 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { motion } from "framer-motion";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Settings = () => {
   const { baseUrl: initBase, apiKey: initKey, setConfig } = useApiClient();
@@ -18,9 +19,7 @@ const Settings = () => {
   const [result, setResult] = useState<"ok" | "error" | null>(null);
   const [confirmToken, setConfirmToken] = useState("");
   const navigate = useNavigate();
-
-  // Check if user is logged in
-  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+  const { isAuthenticated } = useAuth();
 
   const onTest = async () => {
     setTesting(true);
@@ -77,7 +76,7 @@ const Settings = () => {
       <div className="h-6" />
 
       {/* API Settings - Only show when logged in */}
-      {isLoggedIn && (
+      {isAuthenticated && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -115,10 +114,10 @@ const Settings = () => {
         </motion.div>
       )}
 
-      {isLoggedIn && <div className="h-6" />}
+      {isAuthenticated && <div className="h-6" />}
 
       {/* Danger Zone - Only show when logged in */}
-      {isLoggedIn && (
+      {isAuthenticated && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
