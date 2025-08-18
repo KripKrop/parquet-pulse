@@ -19,6 +19,9 @@ const Settings = () => {
   const [confirmToken, setConfirmToken] = useState("");
   const navigate = useNavigate();
 
+  // Check if user is logged in
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+
   const onTest = async () => {
     setTesting(true);
     setResult(null);
@@ -73,95 +76,99 @@ const Settings = () => {
 
       <div className="h-6" />
 
-      {/* API Settings */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2, duration: 0.3 }}
-      >
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle>API Configuration</CardTitle>
-            <CardDescription>Configure API connectivity</CardDescription>
-          </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid gap-3">
-            <Label htmlFor="base">API Base URL</Label>
-            <Input id="base" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://localhost:8000" />
-          </div>
-          <div className="grid gap-3">
-            <Label htmlFor="key">API Key</Label>
-            <Input id="key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="changeme" />
-          </div>
-          <div className="flex items-center gap-3">
-            <Button variant="secondary" onClick={onTest} disabled={testing} aria-busy={testing}>
-              {testing ? "Testing..." : "Test Connection"}
-            </Button>
-            {result === "ok" && <span className="text-sm text-muted-foreground">Health: OK</span>}
-            {result === "error" && <span className="text-sm text-destructive">Health: ERROR</span>}
-          </div>
-          <div className="text-xs text-muted-foreground">
-            WS URL preview: <code className="px-1 py-0.5 rounded bg-secondary">{resolvedWs}</code>
-          </div>
-          <div className="pt-2">
-            <Button onClick={onSave}>Save</Button>
-          </div>
-        </CardContent>
-        </Card>
-      </motion.div>
+      {/* API Settings - Only show when logged in */}
+      {isLoggedIn && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.3 }}
+        >
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle>API Configuration</CardTitle>
+              <CardDescription>Configure API connectivity</CardDescription>
+            </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3">
+              <Label htmlFor="base">API Base URL</Label>
+              <Input id="base" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://localhost:8000" />
+            </div>
+            <div className="grid gap-3">
+              <Label htmlFor="key">API Key</Label>
+              <Input id="key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="changeme" />
+            </div>
+            <div className="flex items-center gap-3">
+              <Button variant="secondary" onClick={onTest} disabled={testing} aria-busy={testing}>
+                {testing ? "Testing..." : "Test Connection"}
+              </Button>
+              {result === "ok" && <span className="text-sm text-muted-foreground">Health: OK</span>}
+              {result === "error" && <span className="text-sm text-destructive">Health: ERROR</span>}
+            </div>
+            <div className="text-xs text-muted-foreground">
+              WS URL preview: <code className="px-1 py-0.5 rounded bg-secondary">{resolvedWs}</code>
+            </div>
+            <div className="pt-2">
+              <Button onClick={onSave}>Save</Button>
+            </div>
+          </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
-      <div className="h-6" />
+      {isLoggedIn && <div className="h-6" />}
 
-      {/* Danger Zone */}
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3, duration: 0.3 }}
-      >
-        <Card className="glass-card border-destructive/20 glass-danger">
-          <CardHeader>
-            <CardTitle className="text-destructive">Danger Zone</CardTitle>
-            <CardDescription>Irreversible operations. Proceed with caution.</CardDescription>
-          </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="confirm">Type DELETE ALL to enable</Label>
-            <Input id="confirm" value={confirmToken} onChange={(e) => setConfirmToken(e.target.value)} placeholder="DELETE ALL" />
-            <p className="text-xs text-muted-foreground">
-              This wipes the entire dataset, file records, uploaded blobs, and Redis job statuses.
-            </p>
-          </div>
-          <div>
-            <Button
-              variant="destructive"
-              disabled={confirmToken !== "DELETE ALL"}
-              onClick={async () => {
-                try {
-                  const res = await request<{ ok: boolean; cleared: string[] }>("/admin/clear", {
-                    method: "POST",
-                    body: JSON.stringify({ scope: "all", confirm: true, confirm_token: "DELETE ALL" }),
-                  });
-                  if (res.ok) {
-                    toast({ title: "All data cleared", description: res.cleared.join(", ") });
-                    sessionStorage.setItem("ucpv.cleared", "1");
-                    navigate("/");
+      {/* Danger Zone - Only show when logged in */}
+      {isLoggedIn && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
+        >
+          <Card className="glass-card border-destructive/20 glass-danger">
+            <CardHeader>
+              <CardTitle className="text-destructive">Danger Zone</CardTitle>
+              <CardDescription>Irreversible operations. Proceed with caution.</CardDescription>
+            </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="confirm">Type DELETE ALL to enable</Label>
+              <Input id="confirm" value={confirmToken} onChange={(e) => setConfirmToken(e.target.value)} placeholder="DELETE ALL" />
+              <p className="text-xs text-muted-foreground">
+                This wipes the entire dataset, file records, uploaded blobs, and Redis job statuses.
+              </p>
+            </div>
+            <div>
+              <Button
+                variant="destructive"
+                disabled={confirmToken !== "DELETE ALL"}
+                onClick={async () => {
+                  try {
+                    const res = await request<{ ok: boolean; cleared: string[] }>("/admin/clear", {
+                      method: "POST",
+                      body: JSON.stringify({ scope: "all", confirm: true, confirm_token: "DELETE ALL" }),
+                    });
+                    if (res.ok) {
+                      toast({ title: "All data cleared", description: res.cleared.join(", ") });
+                      sessionStorage.setItem("ucpv.cleared", "1");
+                      navigate("/");
+                    }
+                  } catch (e: any) {
+                    const status = e?.status;
+                    if (status === 400) {
+                      toast({ title: "Missing confirmation", description: e.message, variant: "destructive" });
+                    } else {
+                      toast({ title: "Clear failed", description: e.message, variant: "destructive" });
+                    }
                   }
-                } catch (e: any) {
-                  const status = e?.status;
-                  if (status === 400) {
-                    toast({ title: "Missing confirmation", description: e.message, variant: "destructive" });
-                  } else {
-                    toast({ title: "Clear failed", description: e.message, variant: "destructive" });
-                  }
-                }
-              }}
-            >
-              DELETE EVERYTHING
-            </Button>
-          </div>
-        </CardContent>
-        </Card>
-      </motion.div>
+                }}
+              >
+                DELETE EVERYTHING
+              </Button>
+            </div>
+          </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </motion.main>
   );
 };

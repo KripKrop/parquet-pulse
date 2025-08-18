@@ -24,6 +24,12 @@ const Login = () => {
         title: "Welcome back!",
         description: "You have successfully logged in.",
       });
+      // Set login state
+      localStorage.setItem("isLoggedIn", "true");
+      // Redirect to home page
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 500);
     }, 2000);
   };
 
@@ -164,28 +170,11 @@ const Login = () => {
                   </div>
                 </motion.div>
 
-                <motion.div
-                  className="flex items-center justify-between text-sm"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.5 }}
-                >
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input type="checkbox" className="rounded border-border/50" />
-                    <span className="text-muted-foreground">Remember me</span>
-                  </label>
-                  <Link 
-                    to="/forgot-password" 
-                    className="text-primary hover:underline story-link"
-                  >
-                    Forgot password?
-                  </Link>
-                </motion.div>
 
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.6 }}
+                  transition={{ duration: 0.3, delay: 0.5 }}
                 >
                   <Button
                     type="submit"
@@ -204,17 +193,6 @@ const Login = () => {
                 </motion.div>
               </form>
 
-              <motion.div 
-                className="mt-6 text-center text-sm text-muted-foreground"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.7 }}
-              >
-                Don't have an account?{" "}
-                <Link to="/register" className="text-primary hover:underline story-link">
-                  Sign up
-                </Link>
-              </motion.div>
             </CardContent>
           </Card>
         </motion.div>
@@ -224,7 +202,7 @@ const Login = () => {
           className="mt-8 text-center text-xs text-muted-foreground"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.8 }}
+          transition={{ duration: 0.3, delay: 0.6 }}
         >
           <p>
             By signing in, you agree to our{" "}
