@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Eye, EyeOff, Lock, Mail, LogIn } from "lucide-react";
@@ -17,10 +17,14 @@ const Login = () => {
   const { toast } = useToast();
   const { login } = useAuth();
 
+  useEffect(() => {
+    document.title = "Login – Crunch | Universal CSV Viewer";
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     try {
       const { error } = await login(email, password);
       if (error) {
@@ -45,38 +49,18 @@ const Login = () => {
       {/* Floating background elements */}
       <motion.div
         className="absolute top-20 left-20 w-32 h-32 rounded-full bg-primary/5 blur-xl"
-        animate={{
-          y: [0, -10, 0],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: "easeInOut"
-        }}
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
       />
       <motion.div
         className="absolute bottom-20 right-20 w-48 h-48 rounded-full bg-accent/10 blur-2xl"
-        animate={{
-          y: [0, -10, 0],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 1.5
-        }}
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 1.5 }}
       />
       <motion.div
         className="absolute top-1/2 left-10 w-24 h-24 rounded-full bg-muted/8 blur-lg"
-        animate={{
-          y: [0, -10, 0],
-        }}
-        transition={{
-          duration: 3,
-          repeat: Infinity,
-          ease: "easeInOut",
-          delay: 3
-        }}
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: "easeInOut", delay: 3 }}
       />
 
       <motion.div
@@ -86,29 +70,22 @@ const Login = () => {
         transition={{ duration: 0.4, ease: "easeOut" }}
       >
         {/* Header */}
-        <motion.div 
+        <motion.div
           className="text-center mb-8"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: "easeOut", delay: 0.1 }}
         >
-          <motion.div
-            whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
-          >
+          <motion.div whileHover={{ scale: 1.05 }} transition={{ duration: 0.2 }}>
             <Link to="/" className="inline-block">
-              <h1 className="text-3xl font-bold text-gradient-primary mb-2">
-                Crunch
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Universal CSV Viewer
-              </p>
+              <h1 className="text-3xl font-bold text-gradient-primary mb-2">Crunch</h1>
+              <p className="text-sm text-muted-foreground">Universal CSV Viewer</p>
             </Link>
           </motion.div>
         </motion.div>
 
         {/* Login Card */}
-        <motion.div 
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, ease: "easeOut", delay: 0.2 }}
@@ -123,10 +100,10 @@ const Login = () => {
                 Sign in to your account to continue
               </CardDescription>
             </CardHeader>
-            
+
             <CardContent>
               <form onSubmit={handleSubmit} className="space-y-4">
-                <motion.div 
+                <motion.div
                   className="space-y-2"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -146,8 +123,8 @@ const Login = () => {
                     />
                   </div>
                 </motion.div>
-                
-                <motion.div 
+
+                <motion.div
                   className="space-y-2"
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -171,6 +148,7 @@ const Login = () => {
                       size="sm"
                       className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
                       onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
                     >
                       {showPassword ? (
                         <EyeOff className="h-4 w-4 text-muted-foreground" />
@@ -181,17 +159,8 @@ const Login = () => {
                   </div>
                 </motion.div>
 
-
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.5 }}
-                >
-                  <Button
-                    type="submit"
-                    className="w-full button-smooth liquid-bounce"
-                    disabled={isLoading}
-                  >
+                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: 0.5 }}>
+                  <Button type="submit" className="w-full button-smooth liquid-bounce" disabled={isLoading}>
                     {isLoading ? (
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
@@ -202,15 +171,13 @@ const Login = () => {
                     )}
                   </Button>
                 </motion.div>
-
               </form>
-
             </CardContent>
           </Card>
         </motion.div>
 
         {/* Footer */}
-        <motion.div 
+        <motion.div
           className="mt-8 text-center text-xs text-muted-foreground"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
