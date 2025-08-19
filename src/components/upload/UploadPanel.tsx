@@ -19,43 +19,50 @@ const stageLabel: Record<string, string> = {
 export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete }) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const { 
-    file, 
-    setFile, 
+    files,
+    currentFileIndex,
     isUploading, 
-    uploadProgress, 
-    status, 
-    progress, 
-    isComplete, 
-    isFailed, 
-    startUpload 
+    overallProgress,
+    startUploads,
+    setFiles,
+    removeFile,
+    clearUploads
   } = useUpload();
+  
+  const currentFile = files[currentFileIndex];
+  const hasFiles = files.length > 0;
 
-  // Call onComplete when upload finishes
+  // Listen for upload completion event to trigger onComplete only once
   useEffect(() => {
-    if (isComplete) {
+    const handleUploadsComplete = () => {
       onComplete?.();
-    }
-  }, [isComplete, onComplete]);
+    };
+    
+    window.addEventListener('uploadsComplete', handleUploadsComplete);
+    return () => window.removeEventListener('uploadsComplete', handleUploadsComplete);
+  }, [onComplete]);
 
-  const onDrop = (f: File) => {
-    setFile(f);
+  const onDrop = (newFiles: File[]) => {
+    if (isUploading) return;
+    setFiles(newFiles);
   };
 
   const onSubmit = async () => {
-    if (!file || isUploading) return;
-    await startUpload(file);
+    if (!hasFiles || isUploading) return;
+    await startUploads(files.map(f => f.file));
   };
 
   const bytes = (n?: number | null) => (n ? new Intl.NumberFormat().format(n) : "-");
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    if (isUploading) return; // Prevent new file selection during upload
-    if (e.dataTransfer.files?.[0]) onDrop(e.dataTransfer.files[0]);
+    if (isUploading) return;
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    if (droppedFiles.length > 0) onDrop(droppedFiles);
   };
 
   const handleBrowse = () => {
-    if (isUploading) return; // Prevent browsing during upload
+    if (isUploading) return;
     inputRef.current?.click();
   };
 
@@ -93,13 +100,13 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
             initial={{ borderColor: "hsl(var(--border))" }}
             animate={{ 
               borderColor: isUploading ? "hsl(var(--primary) / 0.8)" : 
-                          file ? "hsl(var(--primary) / 0.5)" : "hsl(var(--border))"
+                          hasFiles ? "hsl(var(--primary) / 0.5)" : "hsl(var(--border))"
             }}
           >
             <motion.div
               className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
               initial={false}
-              animate={{ opacity: file ? 0.3 : 0 }}
+              animate={{ opacity: hasFiles ? 0.3 : 0 }}
             />
             <input
               ref={inputRef}
@@ -107,22 +114,27 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
               accept=".csv,text/csv,application/csv"
               className="hidden"
               disabled={isUploading}
-              onChange={(e) => e.target.files?.[0] && !isUploading && onDrop(e.target.files[0])}
+              multiple
+              onChange={(e) => {
+                if (e.target.files && !isUploading) {
+                  onDrop(Array.from(e.target.files));
+                }
+              }}
             />
             <motion.div 
               className="relative z-10"
               animate={{ 
                 color: isUploading ? "hsl(var(--primary))" : 
-                       file ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"
+                       hasFiles ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))"
               }}
             >
               <motion.div
                 className="text-sm font-medium mb-2"
-                animate={{ scale: file || isUploading ? 1.05 : 1 }}
+                animate={{ scale: hasFiles || isUploading ? 1.05 : 1 }}
                 transition={{ duration: 0.2 }}
               >
-                {isUploading ? `🚀 Uploading: ${file?.name}` :
-                 file ? `✓ Selected: ${file.name}` : "📁 Drop a CSV file here, or click to browse"}
+                {isUploading ? `🚀 Processing ${files.length} files...` :
+                 hasFiles ? `✓ Selected: ${files.length} file${files.length > 1 ? 's' : ''}` : "📁 Drop CSV files here, or click to browse"}
               </motion.div>
               {isUploading && (
                 <motion.div
@@ -131,17 +143,17 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   animate={{ opacity: 0.7, y: 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  Upload Progress: {Math.round(uploadProgress)}%
+                  Overall Progress: {Math.round(overallProgress)}% • Current: {currentFile?.file.name}
                 </motion.div>
               )}
-              {!file && !isUploading && (
+              {!hasFiles && !isUploading && (
                 <motion.div
                   className="text-xs opacity-70"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 0.7 }}
                   transition={{ delay: 0.2 }}
                 >
-                  Drag & drop for fastest upload
+                  Select multiple files for batch upload
                 </motion.div>
               )}
             </motion.div>
@@ -156,9 +168,9 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
             >
               <Button 
                 onClick={onSubmit} 
-                disabled={!file || isUploading} 
+                disabled={!hasFiles || isUploading} 
                 className="liquid-bounce button-smooth hover-glow relative overflow-hidden"
-                variant={file && !isUploading ? "default" : "secondary"}
+                variant={hasFiles && !isUploading ? "default" : "secondary"}
               >
                 {isUploading ? (
                   <>
@@ -169,14 +181,14 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                     >
                       ⭮
                     </motion.div>
-                    Uploading...
+                    Processing...
                   </>
                 ) : (
-                  <>🚀 Upload</>
+                  <>🚀 Upload {hasFiles ? `${files.length} file${files.length > 1 ? 's' : ''}` : ''}</>
                 )}
               </Button>
             </motion.div>
-            {file && !isUploading && (
+            {hasFiles && !isUploading && (
               <motion.div 
                 whileHover={{ scale: 1.05 }} 
                 whileTap={{ scale: 0.95 }}
@@ -187,18 +199,55 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
               >
                 <Button 
                   variant="ghost" 
-                  onClick={() => setFile(null)} 
+                  onClick={clearUploads} 
                   className="liquid-bounce hover:text-destructive"
                   disabled={isUploading}
                 >
-                  ✕ Clear
+                  ✕ Clear All
                 </Button>
               </motion.div>
             )}
           </div>
 
-          {/* Upload Progress Bar */}
-          {isUploading && uploadProgress < 100 && (
+          {/* File List */}
+          {hasFiles && !isUploading && (
+            <motion.div
+              className="space-y-2 glass-float rounded-xl p-4 border border-primary/20"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+            >
+              <div className="text-sm font-medium text-foreground mb-3">Selected Files:</div>
+              {files.map((uploadFile, index) => (
+                <motion.div
+                  key={index}
+                  className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/50"
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-xs text-muted-foreground">📄</span>
+                    <span className="text-sm truncate">{uploadFile.file.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      ({(uploadFile.file.size / 1024 / 1024).toFixed(2)} MB)
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => removeFile(index)}
+                    className="h-6 w-6 p-0 hover:text-destructive"
+                  >
+                    ✕
+                  </Button>
+                </motion.div>
+              ))}
+            </motion.div>
+          )}
+
+          {/* Overall Progress Bar */}
+          {isUploading && (
             <motion.div 
               className="space-y-3 glass-float rounded-xl p-4 border border-primary/20 relative overflow-hidden"
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -225,17 +274,19 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   transition={{ duration: 0.3 }}
                   className="origin-left"
                 >
-                  <Progress value={uploadProgress} aria-label="Upload progress" className="h-3" />
+                  <Progress value={overallProgress} aria-label="Overall progress" className="h-3" />
                 </motion.div>
                 <div className="flex items-center justify-between mt-2 text-sm">
-                  <span className="text-primary font-medium">Uploading file...</span>
-                  <span className="text-muted-foreground">{Math.round(uploadProgress)}%</span>
+                  <span className="text-primary font-medium">
+                    Processing {currentFileIndex + 1} of {files.length}: {currentFile?.file.name}
+                  </span>
+                  <span className="text-muted-foreground">{Math.round(overallProgress)}%</span>
                 </div>
               </div>
             </motion.div>
           )}
 
-          {status && (
+          {currentFile?.status && (
             <motion.div 
               className="space-y-4 glass-float rounded-xl p-5 border border-primary/20 relative overflow-hidden"
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -271,7 +322,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                       transition={{ delay: 0.1 }}
                     >
                       <span className="text-xs bg-primary/20 text-primary px-3 py-1.5 rounded-full font-medium">
-                        {status.stage ? stageLabel[status.stage] : status.status}
+                        {currentFile.status?.stage ? stageLabel[currentFile.status.stage] : currentFile.status?.status}
                       </span>
                     </motion.div>
                     <motion.span 
@@ -280,10 +331,10 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.2 }}
                     >
-                      {progress.toFixed(1)}%
+                      {((currentFile.status?.progress || 0) * 100).toFixed(1)}%
                     </motion.span>
                   </div>
-                  <Progress value={progress} aria-label="Ingestion progress" className="h-3" />
+                  <Progress value={(currentFile.status?.progress || 0) * 100} aria-label="Ingestion progress" className="h-3" />
                 </motion.div>
 
                 {/* Status Information Grid */}
@@ -302,7 +353,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   >
                     <div className="text-xs text-muted-foreground mb-1">Data Uploaded</div>
                     <div className="font-medium">
-                      {bytes(status.uploaded)} / {bytes(status.total ?? undefined)}
+                      {bytes(currentFile.status?.uploaded)} / {bytes(currentFile.status?.total ?? undefined)}
                     </div>
                   </motion.div>
 
@@ -315,7 +366,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   >
                     <div className="text-xs text-muted-foreground mb-1">Rows Processed</div>
                     <div className="font-medium">
-                      {status.rows_processed ?? 0} / {status.rows_total ?? 0}
+                      {currentFile.status?.rows_processed ?? 0} / {currentFile.status?.rows_total ?? 0}
                     </div>
                   </motion.div>
 
@@ -328,7 +379,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   >
                     <div className="text-xs text-muted-foreground mb-1">Rows Inserted</div>
                     <div className="font-medium text-green-600">
-                      {status.rows_inserted ?? 0}
+                      {currentFile.status?.rows_inserted ?? 0}
                     </div>
                   </motion.div>
 
@@ -341,39 +392,42 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   >
                     <div className="text-xs text-muted-foreground mb-1">Rows Skipped</div>
                     <div className="font-medium text-amber-600">
-                      {status.rows_skipped ?? 0}
+                      {currentFile.status?.rows_skipped ?? 0}
                     </div>
                   </motion.div>
                 </motion.div>
 
                 {/* Completion Status */}
-                {isComplete && (
+                {!isUploading && files.length > 0 && (
                   <motion.div 
-                    className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3"
-                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
+                    className="space-y-2"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
                   >
-                    <div className="text-green-600 text-lg">✅</div>
-                    <div>
-                      <div className="font-medium text-green-800 dark:text-green-200">Processing Complete!</div>
-                      <div className="text-sm text-green-600 dark:text-green-400">Your data has been successfully ingested.</div>
-                    </div>
-                  </motion.div>
-                )}
-
-                {isFailed && (
-                  <motion.div 
-                    className="bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 rounded-lg p-4 flex items-center gap-3"
-                    initial={{ opacity: 0, scale: 0.8, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    transition={{ duration: 0.5, type: "spring", bounce: 0.3 }}
-                  >
-                    <div className="text-red-600 text-lg">❌</div>
-                    <div>
-                      <div className="font-medium text-red-800 dark:text-red-200">Processing Failed</div>
-                      <div className="text-sm text-red-600 dark:text-red-400">{status.error}</div>
-                    </div>
+                    {files.every(f => f.isComplete) && (
+                      <div className="bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg p-4 flex items-center gap-3">
+                        <div className="text-green-600 text-lg">✅</div>
+                        <div>
+                          <div className="font-medium text-green-800 dark:text-green-200">All Files Complete!</div>
+                          <div className="text-sm text-green-600 dark:text-green-400">
+                            Successfully processed {files.length} file{files.length > 1 ? 's' : ''}.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {files.some(f => f.isFailed) && (
+                      <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-4">
+                        <div className="font-medium text-amber-800 dark:text-amber-200 mb-2">
+                          Some files failed to process:
+                        </div>
+                        {files.filter(f => f.isFailed).map((failedFile, index) => (
+                          <div key={index} className="text-sm text-amber-600 dark:text-amber-400">
+                            • {failedFile.file.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 )}
               </div>
