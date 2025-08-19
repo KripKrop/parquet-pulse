@@ -32,12 +32,15 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
   const currentFile = files[currentFileIndex];
   const hasFiles = files.length > 0;
 
-  // Call onComplete when all uploads finish
+  // Listen for upload completion event to trigger onComplete only once
   useEffect(() => {
-    if (!isUploading && hasFiles && files.every(f => f.isComplete || f.isFailed)) {
+    const handleUploadsComplete = () => {
       onComplete?.();
-    }
-  }, [isUploading, hasFiles, files, onComplete]);
+    };
+    
+    window.addEventListener('uploadsComplete', handleUploadsComplete);
+    return () => window.removeEventListener('uploadsComplete', handleUploadsComplete);
+  }, [onComplete]);
 
   const onDrop = (newFiles: File[]) => {
     if (isUploading) return;

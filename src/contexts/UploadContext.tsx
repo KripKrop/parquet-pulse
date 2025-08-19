@@ -104,8 +104,6 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       try {
         const notification = new Notification(title, {
           body,
-          icon: '/lovable-uploads/d56d44f0-f9b4-4c29-9b2a-588bb9c9b5d0.png',
-          badge: '/lovable-uploads/d56d44f0-f9b4-4c29-9b2a-588bb9c9b5d0.png',
           tag: 'upload-status',
           requireInteraction: false,
           silent: false
@@ -153,6 +151,12 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         // All files complete
         setIsUploading(false);
         toast({ title: "All uploads complete!", description: `Successfully processed ${files.length} files` });
+        
+        // Add a small delay to ensure state updates are complete before notifying parent
+        setTimeout(() => {
+          // Trigger a custom event that the parent can listen to
+          window.dispatchEvent(new CustomEvent('uploadsComplete'));
+        }, 100);
       }
     }
     
