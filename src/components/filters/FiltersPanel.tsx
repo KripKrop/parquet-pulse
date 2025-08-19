@@ -17,10 +17,11 @@ export const FiltersPanel: React.FC<{
   columns: string[];
   filters: Filters;
   setFilters: (f: Filters) => void;
+  selectedFiles?: string[];
   onApply?: () => void;
   onClearAll?: () => void;
   refreshKey?: number;
-}> = ({ columns, filters, setFilters, onApply, onClearAll, refreshKey = 0 }) => {
+}> = ({ columns, filters, setFilters, selectedFiles = [], onApply, onClearAll, refreshKey = 0 }) => {
   const [open, setOpen] = useState<string[]>([]);
   const [search, setSearch] = useState<Record<string, string>>({});
   const debounced = useDebounce(search, 200);
@@ -50,7 +51,8 @@ export const FiltersPanel: React.FC<{
         fields: visibleColumns,
         exclude_self: true,
         include_empty: false,
-        order: "count_desc"
+        order: "count_desc",
+        source_files: selectedFiles.length > 0 ? selectedFiles : null
       };
 
       const { baseUrl, apiKey } = getApiConfig();
@@ -96,7 +98,7 @@ export const FiltersPanel: React.FC<{
     if (open.length > 0) {
       fetchFacets(open);
     }
-  }, [filters, open, debounced, refreshKey]);
+  }, [filters, open, debounced, selectedFiles, refreshKey]);
 
   // Clear facets when refreshKey changes
   useEffect(() => {

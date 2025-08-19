@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { motion, AnimatePresence } from "framer-motion";
 import Index from "./pages/Index";
+import Files from "./pages/Files";
 import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
@@ -40,6 +41,7 @@ const App = () => (
                     <AnimatePresence mode="wait">
                       <Routes>
                         <Route path="/" element={<Index />} />
+                        <Route path="/files" element={<Files />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/settings" element={<Settings />} />
                         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

@@ -13,12 +13,13 @@ import { useSmartPrefetch } from "@/hooks/useSmartPrefetch";
 export const DataTable: React.FC<{
   columnsList: string[];
   filters: Record<string, string[]>;
+  selectedFiles?: string[];
   refreshKey?: number;
-}> = ({ columnsList, filters, refreshKey = 0 }) => {
+}> = ({ columnsList, filters, selectedFiles = [], refreshKey = 0 }) => {
   const limit = 200;
 
   const queryFn = async ({ pageParam = 0 }): Promise<QueryResponse> => {
-    const body: QueryBody = { filters, limit, offset: pageParam };
+    const body: QueryBody = { filters, limit, offset: pageParam, source_files: selectedFiles };
     return request<QueryResponse>("/query", {
       method: "POST",
       body: JSON.stringify(body),
@@ -26,7 +27,7 @@ export const DataTable: React.FC<{
   };
 
   const { data, fetchNextPage, hasNextPage, isFetching, refetch, isLoading } = useInfiniteQuery({
-    queryKey: ["query", filters, refreshKey],
+    queryKey: ["query", filters, selectedFiles, refreshKey],
     queryFn,
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {

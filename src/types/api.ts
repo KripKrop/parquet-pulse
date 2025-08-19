@@ -37,6 +37,7 @@ export type FacetsRequest = {
   limit?: number;
   include_empty?: boolean;
   order?: "count_desc" | "value_asc" | "value_desc";
+  source_files?: string[] | null;
 };
 
 export type FacetsResponse = {
@@ -50,6 +51,63 @@ export type QueryBody = {
   fields?: string[];
   limit?: number;
   offset?: number;
+  source_files?: string[] | null;
 };
 
 export type QueryResponse = { rows: Record<string, any>[]; total: number };
+
+// Files API Types
+export type FilesListResponse = {
+  files: Array<{
+    file_id: string
+    filename: string
+    file_hash: string
+    uploaded_at: string
+    rows_total: number | null
+    rows_inserted: number | null
+    rows_skipped: number | null
+    current_row_count: number
+    last_ingested_at: string | null
+    size_bytes: number | null
+    ext: string | null
+    columns_map: Record<string, string>
+  }>
+}
+
+export type FileDetailsResponse = {
+  file_id: string
+  filename: string
+  file_hash: string
+  uploaded_at: string
+  rows_total: number | null
+  rows_inserted: number | null
+  rows_skipped: number | null
+  current_row_count: number
+  last_ingested_at: string | null
+  size_bytes: number | null
+  ext: string | null
+  columns_map: Record<string, string>
+}
+
+export type FileDeleteRequest = {
+  dry_run?: boolean
+  confirm?: boolean
+  drop_file_record?: boolean
+  expected_min?: number | null
+  expected_max?: number | null
+}
+
+export type FileDryRunResponse = {
+  file_id: string
+  filename: string
+  matched: number
+  deleted: 0
+  dry_run: true
+}
+
+export type FileDeleteResponse = {
+  file_id: string
+  filename: string
+  deleted: number
+  dropped_columns: string[]
+}

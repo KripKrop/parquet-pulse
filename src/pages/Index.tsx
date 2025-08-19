@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { request } from "@/services/apiClient";
 import type { ColumnsResponse } from "@/types/api";
 import { UploadPanel } from "@/components/upload/UploadPanel";
 import { FiltersPanel, type Filters } from "@/components/filters/FiltersPanel";
 import { DataTable } from "@/components/table/DataTable";
 import { DownloadCsv } from "@/components/download/DownloadCsv";
+import { FileMultiSelect } from "@/components/files/FileMultiSelect";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { BulkDeleteDialog } from "@/components/delete/BulkDeleteDialog";
@@ -13,13 +15,43 @@ import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const Index = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  
   const { data: colsData, refetch: refetchCols } = useQuery({
     queryKey: ["columns"],
     queryFn: () => request<ColumnsResponse>("/columns"),
   });
 
   const [filters, setFilters] = useState<Filters>({});
+  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  // Initialize from URL params
+  useEffect(() => {
+    const filesParam = searchParams.get('files');
+    if (filesParam) {
+      const fileIds = filesParam.split(',').filter(Boolean);
+      setSelectedFiles(fileIds);
+    }
+  }, [searchParams]);
+
+  // Update URL when files change
+  useEffect(() => {
+    if (selectedFiles.length > 0) {
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.set('files', selectedFiles.join(','));
+        return newParams;
+      });
+    } else {
+      setSearchParams(prev => {
+        const newParams = new URLSearchParams(prev);
+        newParams.delete('files');
+        return newParams;
+      });
+    }
+  }, [selectedFiles, setSearchParams]);
+
   const apply = () => setFilters({ ...filters });
   const clear = () => setFilters({});
 
@@ -77,14 +109,22 @@ const Index = () => {
             whileHover={{ scale: 1.005 }}
             transition={{ duration: 0.2 }}
           >
-            <FiltersPanel
-              columns={columns}
-              filters={filters}
-              setFilters={setFilters}
-              onApply={apply}
-              onClearAll={clear}
-              refreshKey={refreshKey}
-            />
+            <div className="space-y-4">
+              <FileMultiSelect 
+                selectedFiles={selectedFiles}
+                onSelectionChange={setSelectedFiles}
+              />
+              <Separator />
+              <FiltersPanel
+                columns={columns}
+                filters={filters}
+                selectedFiles={selectedFiles}
+                setFilters={setFilters}
+                onApply={apply}
+                onClearAll={clear}
+                refreshKey={refreshKey}
+              />
+            </div>
           </motion.div>
         </motion.aside>
         
@@ -148,7 +188,12 @@ const Index = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4, delay: 0.4 }}
           >
-            <DataTable columnsList={columns} filters={filters} refreshKey={refreshKey} />
+            <DataTable 
+              columnsList={columns} 
+              filters={filters} 
+              selectedFiles={selectedFiles}
+              refreshKey={refreshKey} 
+            />
           </motion.div>
         </motion.section>
       </div>
