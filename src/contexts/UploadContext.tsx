@@ -1,7 +1,6 @@
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { request, getApiConfig } from "@/services/apiClient";
-import { useJobStatus } from "@/hooks/useJobStatus";
 import { useUploadRetry } from "@/hooks/useUploadRetry";
 import type { JobStatus } from "@/types/api";
 import type { UploadFile, UploadConfig, UploadStats, UploadValidationResult } from "@/types/upload";
@@ -140,68 +139,104 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Job status hooks for all files
-  const fileJobStatuses = files.map(file => 
-    useJobStatus(file.jobId || undefined)
-  );
-
-  // Update file statuses from job status hooks
+  // Job status polling for all files with job IDs
   useEffect(() => {
-    files.forEach((file, index) => {
-      const jobStatus = fileJobStatuses[index];
-      if (jobStatus.status && file.jobId) {
-        setFilesState(prev => prev.map(f => 
-          f.id === file.id 
-            ? { 
-                ...f, 
-                jobStatus: jobStatus.status,
-                processingProgress: jobStatus.progress,
-                isComplete: jobStatus.isComplete,
-                isFailed: jobStatus.isFailed && !f.isCancelled
-              }
-            : f
-        ));
+    const filesWithJobs = files.filter(f => f.jobId && !f.isComplete && !f.isFailed && !f.isCancelled);
+    if (filesWithJobs.length === 0) return;
 
-        // Handle completion
-        if (jobStatus.isComplete && !file.isComplete) {
-          toast({ title: "File processed", description: `${file.file.name} completed` });
-          
-          showBrowserNotification(
-            'File Complete ✅',
-            `Your file "${file.file.name}" has been successfully processed.`,
-            true
-          );
-          
-          setTimeout(() => {
-            playNotificationSound();
-          }, 100);
-        }
+    let isActive = true;
+    
+    const pollJobStatuses = async () => {
+      if (!isActive) return;
+      
+      try {
+        const statusPromises = filesWithJobs.map(async (file) => {
+          try {
+            const status = await request<JobStatus>(`/status/${file.jobId}`);
+            return { fileId: file.id, status, file };
+          } catch (error) {
+            return { fileId: file.id, status: null, file, error };
+          }
+        });
+        
+        const results = await Promise.allSettled(statusPromises);
+        
+        results.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value.status) {
+            const { fileId, status, file } = result.value;
+            const progress = Math.round(((status.progress ?? 0) * 100 + Number.EPSILON) * 100) / 100;
+            const isComplete = status.status === "completed";
+            const isFailed = status.status === "failed";
+            
+            setFilesState(prev => prev.map(f => 
+              f.id === fileId 
+                ? { 
+                    ...f, 
+                    jobStatus: status,
+                    processingProgress: progress,
+                    isComplete,
+                    isFailed: isFailed && !f.isCancelled
+                  }
+                : f
+            ));
 
-        // Handle failure
-        if (jobStatus.isFailed && jobStatus.status?.error && !file.isFailed && !file.isCancelled) {
-          const error = categorizeError({ message: jobStatus.status.error, status: 500 });
-          
-          setFilesState(prev => prev.map(f => 
-            f.id === file.id 
-              ? { ...f, error, isFailed: true, endTime: Date.now() }
-              : f
-          ));
+            // Handle completion
+            if (isComplete && !file.isComplete) {
+              toast({ title: "File processed", description: `${file.file.name} completed` });
+              
+              showBrowserNotification(
+                'File Complete ✅',
+                `Your file "${file.file.name}" has been successfully processed.`,
+                true
+              );
+              
+              setTimeout(() => {
+                playNotificationSound();
+              }, 100);
+            }
 
-          toast({ 
-            title: "File failed", 
-            description: `${file.file.name}: ${error.message}`, 
-            variant: "destructive" 
-          });
-          
-          showBrowserNotification(
-            'Upload Failed ❌',
-            `Processing failed: ${error.message}`,
-            false
-          );
-        }
+            // Handle failure
+            if (isFailed && status.error && !file.isFailed && !file.isCancelled) {
+              const error = categorizeError({ message: status.error, status: 500 });
+              
+              setFilesState(prev => prev.map(f => 
+                f.id === fileId 
+                  ? { ...f, error, isFailed: true, endTime: Date.now() }
+                  : f
+              ));
+
+              toast({ 
+                title: "File failed", 
+                description: `${file.file.name}: ${error.message}`, 
+                variant: "destructive" 
+              });
+              
+              showBrowserNotification(
+                'Upload Failed ❌',
+                `Processing failed: ${error.message}`,
+                false
+              );
+            }
+          }
+        });
+      } catch (error) {
+        console.error('Error polling job statuses:', error);
       }
-    });
-  }, [fileJobStatuses, files, categorizeError]);
+      
+      // Continue polling if there are still active jobs
+      if (isActive) {
+        setTimeout(pollJobStatuses, 1000);
+      }
+    };
+
+    // Start polling
+    const timeoutId = setTimeout(pollJobStatuses, 1000);
+    
+    return () => {
+      isActive = false;
+      clearTimeout(timeoutId);
+    };
+  }, [files, categorizeError]);
 
   // Check if all uploads are complete
   useEffect(() => {
