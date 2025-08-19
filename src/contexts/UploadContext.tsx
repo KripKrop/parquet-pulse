@@ -175,7 +175,9 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                     jobStatus: status,
                     processingProgress: progress,
                     isComplete,
-                    isFailed: isFailed && !f.isCancelled
+                    isFailed: isFailed && !f.isCancelled,
+                    status: isComplete ? "completed" : isFailed ? "failed" : "processing",
+                    endTime: (isComplete || isFailed) ? Date.now() : f.endTime
                   }
                 : f
             ));
@@ -241,7 +243,13 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Check if all uploads are complete
   useEffect(() => {
     const hasActiveUploads = activeUploads.size > 0;
-    const hasIncompleteFiles = files.some(f => !f.isComplete && !f.isFailed && !f.isCancelled);
+    const hasIncompleteFiles = files.some(f => 
+      f.status === "pending" || 
+      f.status === "uploading" || 
+      f.status === "processing" || 
+      f.status === "validating" || 
+      f.status === "retrying"
+    );
     
     if (isUploading && !hasActiveUploads && !hasIncompleteFiles && files.length > 0) {
       setIsUploading(false);

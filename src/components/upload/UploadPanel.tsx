@@ -34,7 +34,12 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
   } = useUpload();
   
   const hasFiles = files.length > 0;
-  const currentFile = files.find(f => f.status === "uploading" || f.status === "processing") || files[0];
+  const currentFile = files.find(f => 
+    f.status === "uploading" || 
+    f.status === "processing" || 
+    f.status === "validating" ||
+    (f.jobStatus && !f.isComplete && !f.isFailed && !f.isCancelled)
+  ) || files.find(f => f.status === "pending") || files[0];
 
   // Listen for upload completion event to trigger onComplete only once
   useEffect(() => {
@@ -293,7 +298,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
           )}
 
           {/* Overall Progress Bar */}
-          {isUploading && (
+          {isUploading && files.some(f => f.status !== "completed" && f.status !== "failed" && f.status !== "cancelled") && (
             <motion.div 
               className="space-y-3 glass-float rounded-xl p-4 border border-primary/20 relative overflow-hidden"
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
@@ -342,7 +347,7 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
             </motion.div>
           )}
 
-          {currentFile?.jobStatus && (
+          {currentFile?.jobStatus && (currentFile.status === "processing" || currentFile.jobStatus.stage) && (
             <motion.div 
               className="space-y-4 glass-float rounded-xl p-5 border border-primary/20 relative overflow-hidden"
               initial={{ opacity: 0, y: 20, scale: 0.95 }}
