@@ -1,19 +1,19 @@
 import type { UploadConfig, UploadValidationResult } from "@/types/upload";
 
 export const DEFAULT_UPLOAD_CONFIG: UploadConfig = {
-  maxFileSize: 100 * 1024 * 1024, // 100MB
-  maxTotalSize: 500 * 1024 * 1024, // 500MB
-  maxConcurrentUploads: 3,
+  maxFileSize: 1.5 * 1024 * 1024 * 1024, // 1.5GB
+  maxTotalSize: 5 * 1024 * 1024 * 1024, // 5GB total
+  maxConcurrentUploads: 2, // Reduced for large files
   allowedTypes: [
     'text/csv',
     'application/csv',
     'text/plain',
     '.csv'
   ],
-  retryDelay: 1000, // 1 second base delay
-  maxRetries: 3,
-  chunkSize: 1024 * 1024, // 1MB chunks
-  requestTimeout: 30000 // 30 seconds
+  retryDelay: 2000, // 2 second base delay for large files
+  maxRetries: 5, // More retries for large files
+  chunkSize: 5 * 1024 * 1024, // 5MB chunks for better performance
+  requestTimeout: 300000 // 5 minutes for large files
 };
 
 export function validateFile(file: File, config: UploadConfig = DEFAULT_UPLOAD_CONFIG): UploadValidationResult {
@@ -52,9 +52,11 @@ export function validateFile(file: File, config: UploadConfig = DEFAULT_UPLOAD_C
     errors.push(`File "${file.name}" is empty.`);
   }
 
-  // Large file warning
-  if (file.size > 50 * 1024 * 1024) { // 50MB
-    warnings.push(`File "${file.name}" is very large and may take a while to upload.`);
+  // Large file warnings with better UX messaging
+  if (file.size > 500 * 1024 * 1024) { // 500MB
+    warnings.push(`File "${file.name}" is ${formatBytes(file.size)} - This is a large file that will take time to upload. Please ensure stable internet connection.`);
+  } else if (file.size > 100 * 1024 * 1024) { // 100MB
+    warnings.push(`File "${file.name}" is ${formatBytes(file.size)} - Large file detected. Upload may take several minutes.`);
   }
 
   return {
@@ -94,9 +96,11 @@ export function validateFileList(files: File[], config: UploadConfig = DEFAULT_U
     warnings.push(...fileValidation.warnings);
   });
 
-  // Too many files warning
-  if (files.length > 20) {
-    warnings.push(`Uploading ${files.length} files at once. Consider splitting into smaller batches.`);
+  // File count and size warnings optimized for large files
+  if (files.length > 10 && totalSize > 1024 * 1024 * 1024) { // 1GB
+    warnings.push(`Uploading ${files.length} large files (${formatBytes(totalSize)} total). This may take significant time. Consider uploading in smaller batches for better reliability.`);
+  } else if (files.length > 20) {
+    warnings.push(`Uploading ${files.length} files at once. Consider splitting into smaller batches for optimal performance.`);
   }
 
   return {

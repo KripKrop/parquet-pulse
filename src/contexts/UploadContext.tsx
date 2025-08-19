@@ -288,12 +288,17 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
             const now = Date.now();
             const percentComplete = (e.loaded / e.total) * 100;
             
-            // Calculate upload speed
+            // Calculate upload speed with smoothing for large files
             let speed = 0;
             const timeDiff = now - lastProgressTime;
-            if (timeDiff > 1000) { // Update speed every second
+            if (timeDiff > 500) { // Update speed more frequently for better UX
               const bytesDiff = e.loaded - lastProgressBytes;
-              speed = bytesDiff / (timeDiff / 1000); // bytes per second
+              const currentSpeed = bytesDiff / (timeDiff / 1000); // bytes per second
+              
+              // Smooth speed calculation for better UX
+              const previousSpeed = uploadFile.uploadSpeed || 0;
+              speed = previousSpeed > 0 ? (previousSpeed * 0.7 + currentSpeed * 0.3) : currentSpeed;
+              
               lastProgressTime = now;
               lastProgressBytes = e.loaded;
             }

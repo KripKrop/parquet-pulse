@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { motion } from "framer-motion";
 import { useUpload } from "@/contexts/UploadContext";
+import { FileSizeIndicator } from "@/components/ui/file-size-indicator";
+import { UploadStatusBadge } from "@/components/ui/upload-status-badge";
+import { formatBytes, formatTimeRemaining } from "@/utils/uploadValidation";
 
 const stageLabel: Record<string, string> = {
   uploading: "Uploading",
@@ -145,6 +148,9 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                     transition={{ duration: 0.3 }}
                   >
                     Overall Progress: {Math.round(overallProgress)}% • Active: {stats.totalFiles - stats.completedFiles - stats.failedFiles - stats.cancelledFiles}
+                    {stats.estimatedTimeRemaining > 0 && (
+                      <> • ETA: {formatTimeRemaining(stats.estimatedTimeRemaining)}</>
+                    )}
                   </motion.div>
                 )}
               {!hasFiles && !isUploading && (
@@ -239,26 +245,47 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
               <div className="text-sm font-medium text-foreground mb-3">Selected Files:</div>
               {files.map((uploadFile, index) => (
                 <motion.div
-                  key={index}
-                  className="flex items-center justify-between p-2 rounded-lg bg-background/50 border border-border/50"
+                  key={uploadFile.id}
+                  className="flex items-center justify-between p-3 rounded-lg bg-background/50 border border-border/50 hover:bg-background/70 transition-colors"
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-xs text-muted-foreground">📄</span>
-                    <span className="text-sm truncate">{uploadFile.file.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      ({(uploadFile.file.size / 1024 / 1024).toFixed(2)} MB)
-                    </span>
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <FileSizeIndicator size={uploadFile.file.size} />
+                    <div className="flex flex-col gap-1 flex-1 min-w-0">
+                      <span className="text-sm truncate font-medium">{uploadFile.file.name}</span>
+                      <div className="flex items-center gap-2">
+                        <UploadStatusBadge status={uploadFile.status} />
+                        {uploadFile.uploadSpeed > 0 && uploadFile.status === "uploading" && (
+                          <span className="text-xs text-muted-foreground">
+                            {formatBytes(uploadFile.uploadSpeed)}/s
+                          </span>
+                        )}
+                        {uploadFile.eta && uploadFile.eta > 0 && (
+                          <span className="text-xs text-muted-foreground">
+                            ETA: {formatTimeRemaining(uploadFile.eta)}
+                          </span>
+                        )}
+                      </div>
+                      {uploadFile.uploadProgress > 0 && uploadFile.uploadProgress < 100 && (
+                        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
+                          <div 
+                            className="bg-primary h-1.5 rounded-full transition-all duration-300" 
+                            style={{ width: `${uploadFile.uploadProgress}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={() => removeFile(uploadFile.id)}
-                    className="h-6 w-6 p-0 hover:text-destructive"
+                    className="h-6 w-6 p-0 hover:text-destructive ml-2"
+                    disabled={uploadFile.status === "uploading" || uploadFile.status === "processing"}
                   >
-                    ✕
+                    {uploadFile.status === "uploading" || uploadFile.status === "processing" ? "⏳" : "✕"}
                   </Button>
                 </motion.div>
               ))}
@@ -296,10 +323,20 @@ export const UploadPanel: React.FC<{ onComplete?: () => void }> = ({ onComplete 
                   <Progress value={overallProgress} aria-label="Overall progress" className="h-3" />
                 </motion.div>
                 <div className="flex items-center justify-between mt-2 text-sm">
-                  <span className="text-primary font-medium">
-                    Processing {stats.totalFiles - stats.completedFiles - stats.failedFiles - stats.cancelledFiles} of {files.length} files
-                  </span>
-                  <span className="text-muted-foreground">{Math.round(overallProgress)}%</span>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-primary font-medium">
+                      Processing {stats.totalFiles - stats.completedFiles - stats.failedFiles - stats.cancelledFiles} of {files.length} files
+                    </span>
+                    {stats.averageSpeed > 0 && (
+                      <span className="text-xs text-muted-foreground">
+                        Speed: {formatBytes(stats.averageSpeed)}/s
+                        {stats.estimatedTimeRemaining > 0 && (
+                          <> • {formatTimeRemaining(stats.estimatedTimeRemaining)} remaining</>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-muted-foreground font-bold">{Math.round(overallProgress)}%</span>
                 </div>
               </div>
             </motion.div>
