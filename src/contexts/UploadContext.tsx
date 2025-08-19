@@ -4,31 +4,39 @@ import { request, getApiConfig } from "@/services/apiClient";
 import { useJobStatus } from "@/hooks/useJobStatus";
 import type { JobStatus } from "@/types/api";
 
-export interface UploadState {
-  file: File | null;
+export interface UploadFile {
+  file: File;
   jobId: string | null;
-  isUploading: boolean;
-  uploadProgress: number;
   status: JobStatus | null;
-  progress: any;
+  uploadProgress: number;
   isComplete: boolean;
   isFailed: boolean;
 }
 
+export interface UploadState {
+  files: UploadFile[];
+  currentFileIndex: number;
+  isUploading: boolean;
+  overallProgress: number;
+}
+
 export interface UploadContextValue extends UploadState {
-  startUpload: (file: File) => Promise<void>;
-  clearUpload: () => void;
-  setFile: (file: File | null) => void;
+  startUploads: (files: File[]) => Promise<void>;
+  clearUploads: () => void;
+  setFiles: (files: File[]) => void;
+  removeFile: (index: number) => void;
 }
 
 const UploadContext = createContext<UploadContextValue | undefined>(undefined);
 
 export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [file, setFile] = useState<File | null>(null);
-  const [jobId, setJobId] = useState<string | null>(null);
+  const [files, setFilesState] = useState<UploadFile[]>([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
-  const { status, progress, isComplete, isFailed } = useJobStatus(jobId || undefined);
+  const [overallProgress, setOverallProgress] = useState(0);
+  
+  const currentFile = files[currentFileIndex];
+  const { status, progress, isComplete, isFailed } = useJobStatus(currentFile?.jobId || undefined);
   
   // Audio ref for sound notifications
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -112,14 +120,25 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Handle completion/failure
+  // Update file status when job status changes
   useEffect(() => {
-    if (isComplete && jobId) {
-      toast({ title: "Ingestion complete" });
+    if (currentFile && status) {
+      setFilesState(prev => prev.map((f, i) => 
+        i === currentFileIndex 
+          ? { ...f, status, isComplete, isFailed }
+          : f
+      ));
+    }
+  }, [currentFileIndex, status, isComplete, isFailed, currentFile]);
+
+  // Handle completion/failure and move to next file
+  useEffect(() => {
+    if (isComplete && currentFile) {
+      toast({ title: "File processed", description: `${currentFile.file.name} completed` });
       
       showBrowserNotification(
-        'Upload Complete ✅',
-        `Your file "${file?.name || 'upload'}" has been successfully processed.`,
+        'File Complete ✅',
+        `Your file "${currentFile.file.name}" has been successfully processed.`,
         true
       );
       
@@ -127,15 +146,18 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         playNotificationSound();
       }, 100);
       
-      // Clear upload state
-      setJobId(null);
-      setFile(null);
-      setIsUploading(false);
-      setUploadProgress(0);
+      // Move to next file or finish
+      if (currentFileIndex < files.length - 1) {
+        setCurrentFileIndex(prev => prev + 1);
+      } else {
+        // All files complete
+        setIsUploading(false);
+        toast({ title: "All uploads complete!", description: `Successfully processed ${files.length} files` });
+      }
     }
     
-    if (isFailed && status?.error) {
-      toast({ title: "Ingestion failed", description: status.error, variant: "destructive" });
+    if (isFailed && status?.error && currentFile) {
+      toast({ title: "File failed", description: `${currentFile.file.name}: ${status.error}`, variant: "destructive" });
       
       showBrowserNotification(
         'Upload Failed ❌',
@@ -143,18 +165,31 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         false
       );
       
-      setIsUploading(false);
-      setUploadProgress(0);
+      // Move to next file even if this one failed
+      if (currentFileIndex < files.length - 1) {
+        setCurrentFileIndex(prev => prev + 1);
+      } else {
+        setIsUploading(false);
+      }
     }
-  }, [isComplete, isFailed, status?.error, jobId, file?.name]);
+  }, [isComplete, isFailed, status?.error, currentFile, currentFileIndex, files.length]);
 
-  const startUpload = useCallback(async (uploadFile: File) => {
-    if (isUploading) return;
+  // Calculate overall progress
+  useEffect(() => {
+    if (files.length === 0) {
+      setOverallProgress(0);
+      return;
+    }
     
-    setFile(uploadFile);
-    setIsUploading(true);
-    setUploadProgress(0);
+    const totalFiles = files.length;
+    const completedFiles = files.filter(f => f.isComplete).length;
+    const currentProgress = currentFile?.uploadProgress || 0;
     
+    const overall = ((completedFiles * 100) + currentProgress) / totalFiles;
+    setOverallProgress(Math.min(overall, 100));
+  }, [files, currentFile, currentFileIndex]);
+
+  const uploadSingleFile = useCallback(async (uploadFile: File, fileIndex: number): Promise<void> => {
     try {
       const fd = new FormData();
       fd.append("file", uploadFile);
@@ -165,7 +200,11 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
             const percentComplete = (e.loaded / e.total) * 100;
-            setUploadProgress(percentComplete);
+            setFilesState(prev => prev.map((f, i) => 
+              i === fileIndex 
+                ? { ...f, uploadProgress: percentComplete }
+                : f
+            ));
           }
         });
         
@@ -197,42 +236,99 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       if (res.skipped) {
         toast({ title: "Already ingested", description: uploadFile.name });
-        setFile(null);
-        setIsUploading(false);
-        setUploadProgress(0);
+        setFilesState(prev => prev.map((f, i) => 
+          i === fileIndex 
+            ? { ...f, isComplete: true, uploadProgress: 100 }
+            : f
+        ));
         return;
       }
       
-      setJobId(res.job_id);
-      toast({ title: "Upload completed", description: "Processing started..." });
-      setUploadProgress(100);
+      setFilesState(prev => prev.map((f, i) => 
+        i === fileIndex 
+          ? { ...f, jobId: res.job_id, uploadProgress: 100 }
+          : f
+      ));
+      
+      toast({ title: "Upload completed", description: `${uploadFile.name} - Processing started...` });
       
     } catch (e: any) {
-      toast({ title: "Upload failed", description: String(e.message || e), variant: "destructive" });
-      setIsUploading(false);
-      setUploadProgress(0);
+      toast({ title: "Upload failed", description: `${uploadFile.name}: ${e.message || e}`, variant: "destructive" });
+      setFilesState(prev => prev.map((f, i) => 
+        i === fileIndex 
+          ? { ...f, isFailed: true }
+          : f
+      ));
     }
-  }, [isUploading]);
+  }, []);
 
-  const clearUpload = useCallback(() => {
-    setFile(null);
-    setJobId(null);
+  const startUploads = useCallback(async (uploadFiles: File[]) => {
+    if (isUploading || uploadFiles.length === 0) return;
+    
+    // Initialize files array
+    const initialFiles: UploadFile[] = uploadFiles.map(file => ({
+      file,
+      jobId: null,
+      status: null,
+      uploadProgress: 0,
+      isComplete: false,
+      isFailed: false
+    }));
+    
+    setFilesState(initialFiles);
+    setCurrentFileIndex(0);
+    setIsUploading(true);
+    setOverallProgress(0);
+    
+    // Upload first file
+    await uploadSingleFile(uploadFiles[0], 0);
+  }, [isUploading, uploadSingleFile]);
+
+  // Auto-upload next file when current completes
+  useEffect(() => {
+    if (isUploading && currentFile && (currentFile.isComplete || currentFile.isFailed)) {
+      const nextIndex = currentFileIndex + 1;
+      if (nextIndex < files.length) {
+        const nextFile = files[nextIndex];
+        if (!nextFile.jobId && !nextFile.isComplete && !nextFile.isFailed) {
+          uploadSingleFile(nextFile.file, nextIndex);
+        }
+      }
+    }
+  }, [isUploading, currentFile, currentFileIndex, files, uploadSingleFile]);
+
+  const clearUploads = useCallback(() => {
+    setFilesState([]);
+    setCurrentFileIndex(0);
     setIsUploading(false);
-    setUploadProgress(0);
+    setOverallProgress(0);
+  }, []);
+
+  const setFiles = useCallback((newFiles: File[]) => {
+    const uploadFiles: UploadFile[] = newFiles.map(file => ({
+      file,
+      jobId: null,
+      status: null,
+      uploadProgress: 0,
+      isComplete: false,
+      isFailed: false
+    }));
+    setFilesState(uploadFiles);
+  }, []);
+
+  const removeFile = useCallback((index: number) => {
+    setFilesState(prev => prev.filter((_, i) => i !== index));
   }, []);
 
   const value: UploadContextValue = {
-    file,
-    jobId,
+    files,
+    currentFileIndex,
     isUploading,
-    uploadProgress,
-    status,
-    progress,
-    isComplete,
-    isFailed,
-    startUpload,
-    clearUpload,
-    setFile
+    overallProgress,
+    startUploads,
+    clearUploads,
+    setFiles,
+    removeFile
   };
 
   return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;
