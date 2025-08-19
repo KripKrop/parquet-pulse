@@ -20,18 +20,18 @@ const stageLabel: Record<string, string> = {
 export function FloatingUploadWidget() {
   const { 
     files,
-    currentFileIndex,
     isUploading, 
     overallProgress,
-    clearUploads 
+    clearUploads,
+    stats 
   } = useUpload();
 
-  const currentFile = files[currentFileIndex];
-  const shouldShow = files.length > 0 && (isUploading || files.some(f => f.status));
+  const currentFile = files.find(f => f.status === "uploading" || f.status === "processing") || files[0];
+  const shouldShow = files.length > 0 && (isUploading || files.some(f => f.jobStatus));
   const bytes = (n?: number | null) => (n ? new Intl.NumberFormat().format(n) : "-");
   
-  const completedFiles = files.filter(f => f.isComplete).length;
-  const failedFiles = files.filter(f => f.isFailed).length;
+  const completedFiles = stats.completedFiles;
+  const failedFiles = stats.failedFiles;
   const isAllComplete = !isUploading && files.length > 0 && files.every(f => f.isComplete || f.isFailed);
 
   if (!shouldShow) return null;
@@ -98,7 +98,7 @@ export function FloatingUploadWidget() {
             {/* Status summary */}
             <div className="text-xs text-muted-foreground">
               {isUploading ? 
-                `Processing ${currentFileIndex + 1} of ${files.length}: ${currentFile?.file.name}` :
+                `Processing ${stats.totalFiles - stats.completedFiles - stats.failedFiles - stats.cancelledFiles} of ${files.length} files` :
                 `${completedFiles} of ${files.length} files completed ${failedFiles > 0 ? `(${failedFiles} failed)` : ''}`
               }
             </div>
@@ -120,7 +120,7 @@ export function FloatingUploadWidget() {
             )}
 
             {/* Current file processing status */}
-            {currentFile?.status && isUploading && (
+            {currentFile?.jobStatus && isUploading && (
               <motion.div 
                 className="space-y-2"
                 initial={{ opacity: 0, height: 0 }}
@@ -128,7 +128,7 @@ export function FloatingUploadWidget() {
                 exit={{ opacity: 0, height: 0 }}
               >
                 {/* Current stage */}
-                {currentFile.status.stage && (
+                {currentFile.jobStatus.stage && (
                   <div className="flex items-center gap-2">
                     <motion.div
                       animate={{ rotate: 360 }}
@@ -138,25 +138,25 @@ export function FloatingUploadWidget() {
                       ⭮
                     </motion.div>
                     <span className="text-xs font-medium text-primary">
-                      {stageLabel[currentFile.status.stage] || currentFile.status.stage}
+                      {stageLabel[currentFile.jobStatus.stage] || currentFile.jobStatus.stage}
                     </span>
                   </div>
                 )}
 
                 {/* Current file progress */}
-                {currentFile.status.rows_total && currentFile.status.rows_total > 0 && (
+                {currentFile.jobStatus.rows_total && currentFile.jobStatus.rows_total > 0 && (
                   <div className="space-y-1">
                     <Progress 
-                      value={((currentFile.status.rows_processed || 0) / currentFile.status.rows_total) * 100} 
+                      value={((currentFile.jobStatus.rows_processed || 0) / currentFile.jobStatus.rows_total) * 100} 
                       className="h-2" 
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>
-                        <AnimatedCounter value={currentFile.status.rows_processed || 0} /> / {" "}
-                        <AnimatedCounter value={currentFile.status.rows_total} /> rows
+                        <AnimatedCounter value={currentFile.jobStatus.rows_processed || 0} /> / {" "}
+                        <AnimatedCounter value={currentFile.jobStatus.rows_total} /> rows
                       </span>
                       <span>
-                        {Math.round(((currentFile.status.rows_processed || 0) / currentFile.status.rows_total) * 100)}%
+                        {Math.round(((currentFile.jobStatus.rows_processed || 0) / currentFile.jobStatus.rows_total) * 100)}%
                       </span>
                     </div>
                   </div>

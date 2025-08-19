@@ -2,45 +2,59 @@ import { createContext, useContext, useState, useRef, useEffect, useCallback } f
 import { toast } from "@/hooks/use-toast";
 import { request, getApiConfig } from "@/services/apiClient";
 import { useJobStatus } from "@/hooks/useJobStatus";
+import { useUploadRetry } from "@/hooks/useUploadRetry";
 import type { JobStatus } from "@/types/api";
-
-export interface UploadFile {
-  file: File;
-  jobId: string | null;
-  status: JobStatus | null;
-  uploadProgress: number;
-  isComplete: boolean;
-  isFailed: boolean;
-}
+import type { UploadFile, UploadConfig, UploadStats, UploadValidationResult } from "@/types/upload";
+import { validateFileList, DEFAULT_UPLOAD_CONFIG, generateFileId, calculateETA, formatTimeRemaining } from "@/utils/uploadValidation";
 
 export interface UploadState {
   files: UploadFile[];
-  currentFileIndex: number;
+  activeUploads: Set<string>;
   isUploading: boolean;
   overallProgress: number;
+  config: UploadConfig;
+  stats: UploadStats;
 }
 
 export interface UploadContextValue extends UploadState {
-  startUploads: (files: File[]) => Promise<void>;
+  startUploads: (files: File[]) => Promise<UploadValidationResult>;
+  cancelUpload: (fileId: string) => void;
+  cancelAllUploads: () => void;
+  retryUpload: (fileId: string) => Promise<void>;
+  retryFailedUploads: () => Promise<void>;
   clearUploads: () => void;
-  setFiles: (files: File[]) => void;
-  removeFile: (index: number) => void;
+  setFiles: (files: File[]) => UploadValidationResult;
+  removeFile: (fileId: string) => void;
+  updateConfig: (newConfig: Partial<UploadConfig>) => void;
 }
 
 const UploadContext = createContext<UploadContextValue | undefined>(undefined);
 
 export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [files, setFilesState] = useState<UploadFile[]>([]);
-  const [currentFileIndex, setCurrentFileIndex] = useState(0);
+  const [activeUploads, setActiveUploads] = useState<Set<string>>(new Set());
   const [isUploading, setIsUploading] = useState(false);
   const [overallProgress, setOverallProgress] = useState(0);
+  const [config, setConfig] = useState<UploadConfig>(DEFAULT_UPLOAD_CONFIG);
   
-  const currentFile = files[currentFileIndex];
-  const { status, progress, isComplete, isFailed } = useJobStatus(currentFile?.jobId || undefined);
+  const { getRetryDelay, shouldRetry, categorizeError } = useUploadRetry();
   
-  // Audio ref for sound notifications
+  // Calculate stats
+  const stats: UploadStats = {
+    totalFiles: files.length,
+    completedFiles: files.filter(f => f.isComplete).length,
+    failedFiles: files.filter(f => f.isFailed && !f.isCancelled).length,
+    cancelledFiles: files.filter(f => f.isCancelled).length,
+    totalSize: files.reduce((sum, f) => sum + f.file.size, 0),
+    uploadedSize: files.reduce((sum, f) => sum + (f.file.size * f.uploadProgress / 100), 0),
+    averageSpeed: files.filter(f => f.uploadSpeed > 0).reduce((sum, f) => sum + f.uploadSpeed, 0) / Math.max(1, files.filter(f => f.uploadSpeed > 0).length),
+    estimatedTimeRemaining: 0 // Will be calculated below
+  };
+  
+  // Refs for cleanup and audio
   const audioRef = useRef<HTMLAudioElement | null>(null);
-
+  const abortControllers = useRef<Map<string, AbortController>>(new Map());
+  
   // Request notification permission and preload audio
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -57,6 +71,14 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       console.error('Error creating audio element:', error);
     }
   }, []);
+
+  // Calculate ETA for stats
+  useEffect(() => {
+    const remainingSize = stats.totalSize - stats.uploadedSize;
+    if (stats.averageSpeed > 0 && remainingSize > 0) {
+      stats.estimatedTimeRemaining = remainingSize / stats.averageSpeed;
+    }
+  }, [stats.uploadedSize, stats.totalSize, stats.averageSpeed]);
 
   // Generate and play notification sound
   const playNotificationSound = async () => {
@@ -118,65 +140,93 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  // Update file status when job status changes
-  useEffect(() => {
-    if (currentFile && status) {
-      setFilesState(prev => prev.map((f, i) => 
-        i === currentFileIndex 
-          ? { ...f, status, isComplete, isFailed }
-          : f
-      ));
-    }
-  }, [currentFileIndex, status, isComplete, isFailed, currentFile]);
+  // Job status hooks for all files
+  const fileJobStatuses = files.map(file => 
+    useJobStatus(file.jobId || undefined)
+  );
 
-  // Handle completion/failure and move to next file
+  // Update file statuses from job status hooks
   useEffect(() => {
-    if (isComplete && currentFile) {
-      toast({ title: "File processed", description: `${currentFile.file.name} completed` });
+    files.forEach((file, index) => {
+      const jobStatus = fileJobStatuses[index];
+      if (jobStatus.status && file.jobId) {
+        setFilesState(prev => prev.map(f => 
+          f.id === file.id 
+            ? { 
+                ...f, 
+                jobStatus: jobStatus.status,
+                processingProgress: jobStatus.progress,
+                isComplete: jobStatus.isComplete,
+                isFailed: jobStatus.isFailed && !f.isCancelled
+              }
+            : f
+        ));
+
+        // Handle completion
+        if (jobStatus.isComplete && !file.isComplete) {
+          toast({ title: "File processed", description: `${file.file.name} completed` });
+          
+          showBrowserNotification(
+            'File Complete ✅',
+            `Your file "${file.file.name}" has been successfully processed.`,
+            true
+          );
+          
+          setTimeout(() => {
+            playNotificationSound();
+          }, 100);
+        }
+
+        // Handle failure
+        if (jobStatus.isFailed && jobStatus.status?.error && !file.isFailed && !file.isCancelled) {
+          const error = categorizeError({ message: jobStatus.status.error, status: 500 });
+          
+          setFilesState(prev => prev.map(f => 
+            f.id === file.id 
+              ? { ...f, error, isFailed: true, endTime: Date.now() }
+              : f
+          ));
+
+          toast({ 
+            title: "File failed", 
+            description: `${file.file.name}: ${error.message}`, 
+            variant: "destructive" 
+          });
+          
+          showBrowserNotification(
+            'Upload Failed ❌',
+            `Processing failed: ${error.message}`,
+            false
+          );
+        }
+      }
+    });
+  }, [fileJobStatuses, files, categorizeError]);
+
+  // Check if all uploads are complete
+  useEffect(() => {
+    const hasActiveUploads = activeUploads.size > 0;
+    const hasIncompleteFiles = files.some(f => !f.isComplete && !f.isFailed && !f.isCancelled);
+    
+    if (isUploading && !hasActiveUploads && !hasIncompleteFiles && files.length > 0) {
+      setIsUploading(false);
       
-      showBrowserNotification(
-        'File Complete ✅',
-        `Your file "${currentFile.file.name}" has been successfully processed.`,
-        true
-      );
+      const completedCount = files.filter(f => f.isComplete).length;
+      const failedCount = files.filter(f => f.isFailed && !f.isCancelled).length;
       
-      setTimeout(() => {
-        playNotificationSound();
-      }, 100);
-      
-      // Move to next file or finish
-      if (currentFileIndex < files.length - 1) {
-        setCurrentFileIndex(prev => prev + 1);
-      } else {
-        // All files complete
-        setIsUploading(false);
-        toast({ title: "All uploads complete!", description: `Successfully processed ${files.length} files` });
+      if (completedCount > 0) {
+        toast({ 
+          title: "Uploads complete!", 
+          description: `${completedCount} files processed successfully${failedCount > 0 ? `, ${failedCount} failed` : ''}` 
+        });
         
-        // Add a small delay to ensure state updates are complete before notifying parent
+        // Trigger completion event
         setTimeout(() => {
-          // Trigger a custom event that the parent can listen to
           window.dispatchEvent(new CustomEvent('uploadsComplete'));
         }, 100);
       }
     }
-    
-    if (isFailed && status?.error && currentFile) {
-      toast({ title: "File failed", description: `${currentFile.file.name}: ${status.error}`, variant: "destructive" });
-      
-      showBrowserNotification(
-        'Upload Failed ❌',
-        `Processing failed: ${status.error}`,
-        false
-      );
-      
-      // Move to next file even if this one failed
-      if (currentFileIndex < files.length - 1) {
-        setCurrentFileIndex(prev => prev + 1);
-      } else {
-        setIsUploading(false);
-      }
-    }
-  }, [isComplete, isFailed, status?.error, currentFile, currentFileIndex, files.length]);
+  }, [activeUploads.size, files, isUploading]);
 
   // Calculate overall progress
   useEffect(() => {
@@ -185,28 +235,80 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       return;
     }
     
-    const totalFiles = files.length;
-    const completedFiles = files.filter(f => f.isComplete).length;
-    const currentProgress = currentFile?.uploadProgress || 0;
+    const totalProgress = files.reduce((sum, file) => {
+      if (file.isComplete) return sum + 100;
+      if (file.isFailed || file.isCancelled) return sum + 0;
+      
+      // Weight upload and processing phases
+      const uploadWeight = 0.3; // 30% for upload
+      const processWeight = 0.7; // 70% for processing
+      
+      return sum + (file.uploadProgress * uploadWeight) + (file.processingProgress * processWeight);
+    }, 0);
     
-    const overall = ((completedFiles * 100) + currentProgress) / totalFiles;
-    setOverallProgress(Math.min(overall, 100));
-  }, [files, currentFile, currentFileIndex]);
+    setOverallProgress(Math.min(totalProgress / files.length, 100));
+  }, [files]);
 
-  const uploadSingleFile = useCallback(async (uploadFile: File, fileIndex: number): Promise<void> => {
+  const uploadSingleFile = useCallback(async (uploadFile: UploadFile): Promise<void> => {
+    const startTime = Date.now();
+    let lastProgressTime = startTime;
+    let lastProgressBytes = 0;
+    
     try {
+      // Set initial state
+      setFilesState(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { 
+              ...f, 
+              status: "uploading", 
+              startTime, 
+              error: null,
+              uploadSpeed: 0,
+              eta: null
+            }
+          : f
+      ));
+
       const fd = new FormData();
-      fd.append("file", uploadFile);
+      fd.append("file", uploadFile.file);
+      
+      const abortController = new AbortController();
+      abortControllers.current.set(uploadFile.id, abortController);
       
       const xhr = new XMLHttpRequest();
+      
+      // Handle abort
+      abortController.signal.addEventListener('abort', () => {
+        xhr.abort();
+      });
       
       const uploadPromise = new Promise<{ job_id: string; skipped?: boolean }>((resolve, reject) => {
         xhr.upload.addEventListener('progress', (e) => {
           if (e.lengthComputable) {
+            const now = Date.now();
             const percentComplete = (e.loaded / e.total) * 100;
-            setFilesState(prev => prev.map((f, i) => 
-              i === fileIndex 
-                ? { ...f, uploadProgress: percentComplete }
+            
+            // Calculate upload speed
+            let speed = 0;
+            const timeDiff = now - lastProgressTime;
+            if (timeDiff > 1000) { // Update speed every second
+              const bytesDiff = e.loaded - lastProgressBytes;
+              speed = bytesDiff / (timeDiff / 1000); // bytes per second
+              lastProgressTime = now;
+              lastProgressBytes = e.loaded;
+            }
+            
+            // Calculate ETA
+            const eta = calculateETA(e.loaded, e.total, speed);
+            
+            setFilesState(prev => prev.map(f => 
+              f.id === uploadFile.id 
+                ? { 
+                    ...f, 
+                    uploadProgress: percentComplete,
+                    uploadSpeed: speed > 0 ? speed : f.uploadSpeed,
+                    eta
+                  }
                 : f
             ));
           }
@@ -221,13 +323,25 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
               reject(new Error('Invalid JSON response'));
             }
           } else {
-            reject(new Error(`Upload failed: ${xhr.status}`));
+            reject({ message: `Upload failed: ${xhr.status}`, status: xhr.status });
           }
         });
         
         xhr.addEventListener('error', () => {
           reject(new Error('Network error during upload'));
         });
+        
+        xhr.addEventListener('abort', () => {
+          reject(new Error('Upload cancelled'));
+        });
+        
+        // Set timeout
+        setTimeout(() => {
+          if (xhr.readyState !== XMLHttpRequest.DONE) {
+            xhr.abort();
+            reject(new Error('Upload timeout'));
+          }
+        }, config.requestTimeout);
         
         const { baseUrl, apiKey } = getApiConfig();
         const uploadUrl = `${baseUrl.replace(/\/$/, '')}/upload`;
@@ -238,101 +352,307 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       
       const res = await uploadPromise;
       
+      // Clean up abort controller
+      abortControllers.current.delete(uploadFile.id);
+      setActiveUploads(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(uploadFile.id);
+        return newSet;
+      });
+      
       if (res.skipped) {
-        toast({ title: "Already ingested", description: uploadFile.name });
-        setFilesState(prev => prev.map((f, i) => 
-          i === fileIndex 
-            ? { ...f, isComplete: true, uploadProgress: 100 }
+        setFilesState(prev => prev.map(f => 
+          f.id === uploadFile.id 
+            ? { 
+                ...f, 
+                status: "completed",
+                isComplete: true, 
+                uploadProgress: 100,
+                endTime: Date.now()
+              }
             : f
         ));
+        toast({ title: "Already processed", description: uploadFile.file.name });
         return;
       }
       
-      setFilesState(prev => prev.map((f, i) => 
-        i === fileIndex 
-          ? { ...f, jobId: res.job_id, uploadProgress: 100 }
+      setFilesState(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { 
+              ...f, 
+              jobId: res.job_id, 
+              status: "processing",
+              uploadProgress: 100
+            }
           : f
       ));
       
-      toast({ title: "Upload completed", description: `${uploadFile.name} - Processing started...` });
+      toast({ title: "Upload completed", description: `${uploadFile.file.name} - Processing started...` });
       
     } catch (e: any) {
-      toast({ title: "Upload failed", description: `${uploadFile.name}: ${e.message || e}`, variant: "destructive" });
-      setFilesState(prev => prev.map((f, i) => 
-        i === fileIndex 
-          ? { ...f, isFailed: true }
+      // Clean up
+      abortControllers.current.delete(uploadFile.id);
+      setActiveUploads(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(uploadFile.id);
+        return newSet;
+      });
+      
+      const error = categorizeError(e);
+      
+      setFilesState(prev => prev.map(f => 
+        f.id === uploadFile.id 
+          ? { 
+              ...f, 
+              error,
+              isFailed: true,
+              status: "failed",
+              endTime: Date.now()
+            }
           : f
       ));
+      
+      // Only show toast if not cancelled
+      if (!e.message?.includes('cancelled') && !e.message?.includes('abort')) {
+        toast({ 
+          title: "Upload failed", 
+          description: `${uploadFile.file.name}: ${error.message}`, 
+          variant: "destructive" 
+        });
+      }
     }
-  }, []);
+  }, [config.requestTimeout, categorizeError]);
 
-  const startUploads = useCallback(async (uploadFiles: File[]) => {
-    if (isUploading || uploadFiles.length === 0) return;
+  const startUploads = useCallback(async (uploadFiles: File[]): Promise<UploadValidationResult> => {
+    const validation = validateFileList(uploadFiles, config);
+    
+    if (!validation.isValid) {
+      // Show validation errors
+      validation.errors.forEach(error => {
+        toast({ title: "Validation Error", description: error, variant: "destructive" });
+      });
+      return validation;
+    }
+    
+    // Show warnings
+    validation.warnings.forEach(warning => {
+      toast({ title: "Warning", description: warning, variant: "default" });
+    });
+    
+    if (isUploading) {
+      toast({ title: "Upload in progress", description: "Please wait for current uploads to complete", variant: "destructive" });
+      return validation;
+    }
     
     // Initialize files array
     const initialFiles: UploadFile[] = uploadFiles.map(file => ({
+      id: generateFileId(),
       file,
       jobId: null,
-      status: null,
+      status: "pending",
       uploadProgress: 0,
+      processingProgress: 0,
       isComplete: false,
-      isFailed: false
+      isFailed: false,
+      isCancelled: false,
+      error: null,
+      retryCount: 0,
+      maxRetries: config.maxRetries,
+      startTime: null,
+      endTime: null,
+      uploadSpeed: 0,
+      eta: null,
+      jobStatus: null
     }));
     
     setFilesState(initialFiles);
-    setCurrentFileIndex(0);
     setIsUploading(true);
     setOverallProgress(0);
     
-    // Upload first file
-    await uploadSingleFile(uploadFiles[0], 0);
-  }, [isUploading, uploadSingleFile]);
-
-  // Auto-upload next file when current completes
-  useEffect(() => {
-    if (isUploading && currentFile && (currentFile.isComplete || currentFile.isFailed)) {
-      const nextIndex = currentFileIndex + 1;
-      if (nextIndex < files.length) {
-        const nextFile = files[nextIndex];
-        if (!nextFile.jobId && !nextFile.isComplete && !nextFile.isFailed) {
-          uploadSingleFile(nextFile.file, nextIndex);
+    // Start concurrent uploads (limited by maxConcurrentUploads)
+    const uploadQueue = [...initialFiles];
+    const activeUploadsSet = new Set<string>();
+    
+    const processNextUpload = async () => {
+      if (uploadQueue.length === 0 || activeUploadsSet.size >= config.maxConcurrentUploads) {
+        return;
+      }
+      
+      const nextFile = uploadQueue.shift();
+      if (!nextFile) return;
+      
+      activeUploadsSet.add(nextFile.id);
+      setActiveUploads(new Set(activeUploadsSet));
+      
+      try {
+        await uploadSingleFile(nextFile);
+      } finally {
+        activeUploadsSet.delete(nextFile.id);
+        setActiveUploads(new Set(activeUploadsSet));
+        
+        // Start next upload
+        if (uploadQueue.length > 0) {
+          processNextUpload();
         }
       }
+    };
+    
+    // Start initial concurrent uploads
+    const initialConcurrency = Math.min(config.maxConcurrentUploads, initialFiles.length);
+    for (let i = 0; i < initialConcurrency; i++) {
+      processNextUpload();
     }
-  }, [isUploading, currentFile, currentFileIndex, files, uploadSingleFile]);
+    
+    return validation;
+  }, [isUploading, uploadSingleFile, config]);
+
+  const cancelUpload = useCallback((fileId: string) => {
+    const abortController = abortControllers.current.get(fileId);
+    if (abortController) {
+      abortController.abort();
+      abortControllers.current.delete(fileId);
+    }
+    
+    setFilesState(prev => prev.map(f => 
+      f.id === fileId 
+        ? { ...f, isCancelled: true, status: "cancelled", endTime: Date.now() }
+        : f
+    ));
+    
+    setActiveUploads(prev => {
+      const newSet = new Set(prev);
+      newSet.delete(fileId);
+      return newSet;
+    });
+  }, []);
+
+  const cancelAllUploads = useCallback(() => {
+    // Cancel all active uploads
+    Array.from(abortControllers.current.keys()).forEach(fileId => {
+      cancelUpload(fileId);
+    });
+    
+    setIsUploading(false);
+  }, [cancelUpload]);
+
+  const retryUpload = useCallback(async (fileId: string) => {
+    const file = files.find(f => f.id === fileId);
+    if (!file || file.retryCount >= file.maxRetries) return;
+    
+    const delay = getRetryDelay(file.retryCount, config.retryDelay);
+    
+    // Update retry count and reset state
+    setFilesState(prev => prev.map(f => 
+      f.id === fileId 
+        ? { 
+            ...f, 
+            retryCount: f.retryCount + 1,
+            status: "retrying",
+            error: null,
+            isFailed: false,
+            uploadProgress: 0,
+            processingProgress: 0
+          }
+        : f
+    ));
+    
+    // Wait for retry delay
+    await new Promise(resolve => setTimeout(resolve, delay));
+    
+    // Add back to active uploads
+    setActiveUploads(prev => new Set([...prev, fileId]));
+    
+    await uploadSingleFile(file);
+  }, [files, getRetryDelay, config.retryDelay, uploadSingleFile]);
+
+  const retryFailedUploads = useCallback(async () => {
+    const failedFiles = files.filter(f => f.isFailed && !f.isCancelled && f.retryCount < f.maxRetries);
+    
+    for (const file of failedFiles) {
+      if (activeUploads.size < config.maxConcurrentUploads) {
+        await retryUpload(file.id);
+      }
+    }
+  }, [files, activeUploads.size, config.maxConcurrentUploads, retryUpload]);
 
   const clearUploads = useCallback(() => {
+    // Cancel all active uploads first
+    cancelAllUploads();
+    
+    // Clear state
     setFilesState([]);
-    setCurrentFileIndex(0);
     setIsUploading(false);
     setOverallProgress(0);
-  }, []);
+    setActiveUploads(new Set());
+  }, [cancelAllUploads]);
 
-  const setFiles = useCallback((newFiles: File[]) => {
+  const setFiles = useCallback((newFiles: File[]): UploadValidationResult => {
+    const validation = validateFileList(newFiles, config);
+    
+    if (!validation.isValid) {
+      validation.errors.forEach(error => {
+        toast({ title: "Validation Error", description: error, variant: "destructive" });
+      });
+      return validation;
+    }
+    
+    // Show warnings
+    validation.warnings.forEach(warning => {
+      toast({ title: "Warning", description: warning });
+    });
+    
     const uploadFiles: UploadFile[] = newFiles.map(file => ({
+      id: generateFileId(),
       file,
       jobId: null,
-      status: null,
+      status: "pending",
       uploadProgress: 0,
+      processingProgress: 0,
       isComplete: false,
-      isFailed: false
+      isFailed: false,
+      isCancelled: false,
+      error: null,
+      retryCount: 0,
+      maxRetries: config.maxRetries,
+      startTime: null,
+      endTime: null,
+      uploadSpeed: 0,
+      eta: null,
+      jobStatus: null
     }));
+    
     setFilesState(uploadFiles);
-  }, []);
+    return validation;
+  }, [config]);
 
-  const removeFile = useCallback((index: number) => {
-    setFilesState(prev => prev.filter((_, i) => i !== index));
+  const removeFile = useCallback((fileId: string) => {
+    // Cancel upload if active
+    cancelUpload(fileId);
+    
+    // Remove from files
+    setFilesState(prev => prev.filter(f => f.id !== fileId));
+  }, [cancelUpload]);
+
+  const updateConfig = useCallback((newConfig: Partial<UploadConfig>) => {
+    setConfig(prev => ({ ...prev, ...newConfig }));
   }, []);
 
   const value: UploadContextValue = {
     files,
-    currentFileIndex,
+    activeUploads,
     isUploading,
     overallProgress,
+    config,
+    stats,
     startUploads,
+    cancelUpload,
+    cancelAllUploads,
+    retryUpload,
+    retryFailedUploads,
     clearUploads,
     setFiles,
-    removeFile
+    removeFile,
+    updateConfig
   };
 
   return <UploadContext.Provider value={value}>{children}</UploadContext.Provider>;
