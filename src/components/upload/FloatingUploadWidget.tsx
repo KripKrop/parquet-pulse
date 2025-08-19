@@ -19,20 +19,18 @@ const stageLabel: Record<string, string> = {
 
 export function FloatingUploadWidget() {
   const { 
-    files,
-    currentFileIndex,
+    file, 
     isUploading, 
-    overallProgress,
-    clearUploads 
+    uploadProgress, 
+    status, 
+    progress, 
+    isComplete, 
+    isFailed, 
+    clearUpload 
   } = useUpload();
 
-  const currentFile = files[currentFileIndex];
-  const shouldShow = files.length > 0 && (isUploading || files.some(f => f.status));
+  const shouldShow = file && (isUploading || status);
   const bytes = (n?: number | null) => (n ? new Intl.NumberFormat().format(n) : "-");
-  
-  const completedFiles = files.filter(f => f.isComplete).length;
-  const failedFiles = files.filter(f => f.isFailed).length;
-  const isAllComplete = !isUploading && files.length > 0 && files.every(f => f.isComplete || f.isFailed);
 
   if (!shouldShow) return null;
 
@@ -67,10 +65,10 @@ export function FloatingUploadWidget() {
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {isAllComplete ? (
+                {isComplete ? (
                   <CheckCircle className="h-4 w-4 text-green-500" />
-                ) : failedFiles > 0 && !isUploading ? (
-                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                ) : isFailed ? (
+                  <AlertCircle className="h-4 w-4 text-red-500" />
                 ) : (
                   <motion.div
                     animate={{ rotate: 360 }}
@@ -80,55 +78,50 @@ export function FloatingUploadWidget() {
                   </motion.div>
                 )}
                 <span className="text-sm font-medium text-foreground">
-                  {isAllComplete ? "Complete" : 
-                   failedFiles > 0 && !isUploading ? "Partial" : 
-                   "Processing"}
+                  {isComplete ? "Complete" : isFailed ? "Failed" : "Processing"}
                 </span>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={clearUploads}
+                onClick={clearUpload}
                 className="h-6 w-6 p-0 hover:bg-background/50"
               >
                 <X className="h-3 w-3" />
               </Button>
             </div>
 
-            {/* Status summary */}
-            <div className="text-xs text-muted-foreground">
-              {isUploading ? 
-                `Processing ${currentFileIndex + 1} of ${files.length}: ${currentFile?.file.name}` :
-                `${completedFiles} of ${files.length} files completed ${failedFiles > 0 ? `(${failedFiles} failed)` : ''}`
-              }
+            {/* File name */}
+            <div className="text-xs text-muted-foreground truncate">
+              {file?.name}
             </div>
 
-            {/* Overall progress */}
-            {(isUploading || isAllComplete) && (
+            {/* Progress during upload */}
+            {isUploading && uploadProgress < 100 && (
               <motion.div 
                 className="space-y-2"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                <Progress value={overallProgress} className="h-2" />
+                <Progress value={uploadProgress} className="h-2" />
                 <div className="flex justify-between text-xs text-muted-foreground">
-                  <span>{isUploading ? "Processing..." : "Complete"}</span>
-                  <span>{Math.round(overallProgress)}%</span>
+                  <span>Uploading...</span>
+                  <span>{Math.round(uploadProgress)}%</span>
                 </div>
               </motion.div>
             )}
 
-            {/* Current file processing status */}
-            {currentFile?.status && isUploading && (
+            {/* Processing status */}
+            {status && (
               <motion.div 
                 className="space-y-2"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
               >
-                {/* Current stage */}
-                {currentFile.status.stage && (
+                {/* Stage progress */}
+                {status.stage && !isComplete && !isFailed && (
                   <div className="flex items-center gap-2">
                     <motion.div
                       animate={{ rotate: 360 }}
@@ -138,47 +131,50 @@ export function FloatingUploadWidget() {
                       ⭮
                     </motion.div>
                     <span className="text-xs font-medium text-primary">
-                      {stageLabel[currentFile.status.stage] || currentFile.status.stage}
+                      {stageLabel[status.stage] || status.stage}
                     </span>
                   </div>
                 )}
 
-                {/* Current file progress */}
-                {currentFile.status.rows_total && currentFile.status.rows_total > 0 && (
+                {/* Processing progress */}
+                {progress?.total_rows && progress.total_rows > 0 && (
                   <div className="space-y-1">
                     <Progress 
-                      value={((currentFile.status.rows_processed || 0) / currentFile.status.rows_total) * 100} 
+                      value={(progress.processed_rows / progress.total_rows) * 100} 
                       className="h-2" 
                     />
                     <div className="flex justify-between text-xs text-muted-foreground">
                       <span>
-                        <AnimatedCounter value={currentFile.status.rows_processed || 0} /> / {" "}
-                        <AnimatedCounter value={currentFile.status.rows_total} /> rows
+                        <AnimatedCounter value={progress.processed_rows} /> / {" "}
+                        <AnimatedCounter value={progress.total_rows} /> rows
                       </span>
                       <span>
-                        {Math.round(((currentFile.status.rows_processed || 0) / currentFile.status.rows_total) * 100)}%
+                        {Math.round((progress.processed_rows / progress.total_rows) * 100)}%
                       </span>
                     </div>
                   </div>
                 )}
-              </motion.div>
-            )}
 
-            {/* Final status */}
-            {isAllComplete && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-xs font-medium"
-              >
-                {failedFiles > 0 ? (
-                  <span className="text-amber-600">
-                    ⚠️ {completedFiles} completed, {failedFiles} failed
-                  </span>
-                ) : (
-                  <span className="text-green-600">
-                    ✓ All {completedFiles} files processed successfully
-                  </span>
+                {/* Completion status */}
+                {isComplete && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs text-green-600 font-medium"
+                  >
+                    ✓ Successfully processed {bytes(progress?.inserted_rows)} rows
+                  </motion.div>
+                )}
+
+                {/* Error status */}
+                {isFailed && status.error && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="text-xs text-red-600"
+                  >
+                    ❌ {status.error}
+                  </motion.div>
                 )}
               </motion.div>
             )}
