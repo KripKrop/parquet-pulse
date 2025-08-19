@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Eye, EyeOff, Lock, Mail, LogIn, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Lock, Mail, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -12,45 +12,28 @@ import { useAuth } from "@/contexts/AuthContext";
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [isSignUp, setIsSignUp] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
-  const { login, signup } = useAuth();
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     
     try {
-      if (isSignUp) {
-        const { error } = await signup(email, password);
-        if (error) {
-          toast({
-            title: "Sign up failed",
-            description: error,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Check your email",
-            description: "We've sent you a confirmation link.",
-          });
-        }
+      const { error } = await login(email, password);
+      if (error) {
+        toast({
+          title: "Login failed",
+          description: error,
+          variant: "destructive",
+        });
       } else {
-        const { error } = await login(email, password);
-        if (error) {
-          toast({
-            title: "Login failed",
-            description: error,
-            variant: "destructive",
-          });
-        } else {
-          toast({
-            title: "Welcome back!",
-            description: "You have successfully logged in.",
-          });
-        }
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        });
       }
     } finally {
       setIsLoading(false);
@@ -133,23 +116,11 @@ const Login = () => {
           <Card className="glass-card border-0 shadow-2xl">
             <CardHeader className="space-y-1 pb-6">
               <CardTitle className="text-2xl text-center flex items-center justify-center gap-2">
-                {isSignUp ? (
-                  <>
-                    <UserPlus className="w-6 h-6" />
-                    Create account
-                  </>
-                ) : (
-                  <>
-                    <LogIn className="w-6 h-6" />
-                    Welcome back
-                  </>
-                )}
+                <LogIn className="w-6 h-6" />
+                Welcome back
               </CardTitle>
               <CardDescription className="text-center text-muted-foreground">
-                {isSignUp 
-                  ? "Create your account to get started"
-                  : "Sign in to your account to continue"
-                }
+                Sign in to your account to continue
               </CardDescription>
             </CardHeader>
             
@@ -224,32 +195,14 @@ const Login = () => {
                     {isLoading ? (
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
-                        {isSignUp ? "Creating account..." : "Signing in..."}
+                        Signing in...
                       </div>
                     ) : (
-                      isSignUp ? "Create account" : "Sign in"
+                      "Sign in"
                     )}
                   </Button>
                 </motion.div>
 
-                <motion.div
-                  className="text-center"
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.3, delay: 0.6 }}
-                >
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-sm text-muted-foreground hover:text-foreground"
-                  >
-                    {isSignUp 
-                      ? "Already have an account? Sign in"
-                      : "Don't have an account? Sign up"
-                    }
-                  </Button>
-                </motion.div>
               </form>
 
             </CardContent>
