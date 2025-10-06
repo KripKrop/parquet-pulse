@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { request, wsUrl } from "@/services/apiClient";
 import { getAccessToken } from "@/services/tokenManager";
+import { toast } from "@/hooks/use-toast";
 import type { JobStatus } from "@/types/api";
 
 export function useJobStatus(jobId?: string) {
@@ -36,6 +37,7 @@ export function useJobStatus(jobId?: string) {
         ? `${wsUrl(`/ws/status/${jobId}`)}?token=${encodeURIComponent(token)}`
         : wsUrl(`/ws/status/${jobId}`);
       ws = new WebSocket(url);
+      
       ws.onmessage = (ev) => {
         try {
           const s: JobStatus = JSON.parse(ev.data);
@@ -46,11 +48,29 @@ export function useJobStatus(jobId?: string) {
           }
         } catch {}
       };
-      ws.onerror = () => {
+      
+      ws.onerror = (error) => {
+        console.error("WebSocket error:", error);
         if (!doneRef.current) startPolling();
       };
-      ws.onclose = () => {
-        if (!doneRef.current) startPolling();
+      
+      ws.onclose = (event) => {
+        // Handle authentication failure (4401)
+        if (event.code === 4401) {
+          toast({
+            title: "Authentication Failed",
+            description: "Please refresh the page to re-authenticate",
+            variant: "destructive"
+          });
+          doneRef.current = true;
+          return;
+        }
+        
+        // For normal closures or other errors, fall back to polling
+        if (!doneRef.current) {
+          console.log("WebSocket closed, falling back to HTTP polling");
+          startPolling();
+        }
       };
     } catch {
       startPolling();

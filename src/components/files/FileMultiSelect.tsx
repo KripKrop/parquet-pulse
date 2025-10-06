@@ -173,12 +173,27 @@ export function FileMultiSelect({ selectedFiles, onSelectionChange, className }:
 
       {selectedFiles.length > 0 && (
         <motion.div 
-          className="text-xs text-muted-foreground"
+          className="space-y-1"
           initial={{ opacity: 0, y: -5 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
         >
-          Filtering data from {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
+          <div className="text-xs text-muted-foreground">
+            Filtering data from {selectedFiles.length} file{selectedFiles.length !== 1 ? 's' : ''}
+          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="text-xs text-primary/70 cursor-help">
+                💡 Using file IDs for precise filtering
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+              <p className="text-xs">
+                The backend accepts both file IDs (UUIDs) and legacy filenames. 
+                We're using file IDs for unambiguous filtering across your dataset.
+              </p>
+            </TooltipContent>
+          </Tooltip>
         </motion.div>
       )}
     </div>

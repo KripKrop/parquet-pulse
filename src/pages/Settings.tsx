@@ -139,8 +139,8 @@ export default function Settings() {
 
       {isAuthenticated && <div className="h-6" />}
 
-      {/* Danger Zone */}
-      {isAuthenticated && (
+      {/* Danger Zone - Only for Owners and Admins */}
+      {isAuthenticated && (role === 'owner' || role === 'platform_admin' || role === 'superadmin') && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -149,7 +149,9 @@ export default function Settings() {
           <Card className="glass-card border-destructive/20 glass-danger">
             <CardHeader>
               <CardTitle className="text-destructive">Danger Zone</CardTitle>
-              <CardDescription>Irreversible operations. Proceed with caution.</CardDescription>
+              <CardDescription>
+                Irreversible operations. Only {role === 'owner' ? 'tenant owners' : 'administrators'} can perform these actions.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
@@ -163,7 +165,7 @@ export default function Settings() {
                   placeholder="DELETE ALL"
                 />
                 <p className="text-xs text-muted-foreground">
-                  This wipes the entire dataset, file records, uploaded blobs, and Redis job statuses.
+                  This wipes the entire dataset, file records, uploaded blobs, and Redis job statuses for your tenant.
                 </p>
               </div>
               <div>
@@ -176,6 +178,24 @@ export default function Settings() {
                 </Button>
               </div>
             </CardContent>
+          </Card>
+        </motion.div>
+      )}
+      
+      {/* Message for non-privileged users */}
+      {isAuthenticated && role && !['owner', 'platform_admin', 'superadmin'].includes(role) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3, duration: 0.3 }}
+        >
+          <Card className="glass-card border-muted">
+            <CardHeader>
+              <CardTitle className="text-muted-foreground">Administrative Actions</CardTitle>
+              <CardDescription>
+                Contact your tenant owner to perform administrative operations like deleting all data.
+              </CardDescription>
+            </CardHeader>
           </Card>
         </motion.div>
       )}
