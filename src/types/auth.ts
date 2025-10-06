@@ -39,9 +39,9 @@ export interface InvitedMember {
 
 export interface RegisterRequest {
   tenant_name: string;
-  owner_email: string;
-  owner_password: string;
-  invited_members?: InvitedMember[];
+  email: string;
+  password: string;
+  invites?: InvitedMember[];
 }
 
 export interface RegisterResponse {

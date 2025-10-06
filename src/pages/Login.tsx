@@ -45,9 +45,9 @@ export default function Login() {
       if (isRegisterMode) {
         const { error } = await register({
           tenant_name: tenantName,
-          owner_email: email,
-          owner_password: password,
-          invited_members: invitedMembers.filter(m => m.email && m.password),
+          email: email,
+          password: password,
+          invites: invitedMembers.filter(m => m.email && m.password),
         });
 
         if (error) {
