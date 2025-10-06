@@ -22,7 +22,10 @@ export type JobStatus = {
   ended_at?: string;
 };
 
-export type ColumnsResponse = { columns: string[] };
+export type ColumnsResponse = { 
+  columns: string[];
+  datasetVersion?: string; // From X-Dataset-Version header
+};
 export type DistinctResponse = { values: string[] };
 
 export type FacetValue = {
@@ -110,4 +113,36 @@ export type FileDeleteResponse = {
   filename: string
   deleted: number
   dropped_columns: string[]
+}
+
+// Bulk Delete Types
+export type BulkDeleteRequest = {
+  row_hashes?: string[]
+  filters?: Record<string, string[]>
+  source_files?: string[]
+  dry_run?: boolean
+  confirm?: boolean
+  expected_min?: number
+  expected_max?: number
+  drop_file_records?: boolean
+}
+
+export type BulkDeleteResponse = {
+  matched: number
+  deleted: number
+  dry_run: boolean
+  dropped_columns?: string[]
+}
+
+// Admin Clear Types
+export type ClearRequest = {
+  scope: "dataset" | "files" | "uploads" | "redis" | "cache" | "all"
+  confirm: boolean
+  confirm_token?: string
+  target_tenant_id?: string
+}
+
+export type ClearResponse = {
+  ok: boolean
+  cleared: string[]
 }

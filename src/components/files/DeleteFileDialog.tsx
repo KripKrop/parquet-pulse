@@ -52,9 +52,10 @@ export function DeleteFileDialog({ fileId, open, onClose, onSuccess }: DeleteFil
       setStep('confirm');
     },
     onError: (error: any) => {
+      const message = error?.message || "Could not determine deletion impact";
       toast({
         title: "Dry run failed",
-        description: error?.message || "Could not determine deletion impact",
+        description: message,
         variant: "destructive",
       });
     },
@@ -77,7 +78,9 @@ export function DeleteFileDialog({ fileId, open, onClose, onSuccess }: DeleteFil
       onClose();
     },
     onError: (error: any) => {
-      if (error?.message?.includes('expected_min/expected_max mismatch')) {
+      const message = error?.message || "Could not delete file";
+      
+      if (message.includes('expected_min/expected_max mismatch') || message.includes('Data changed')) {
         toast({
           title: "Data changed since dry run",
           description: "Please retry the dry run as the data has been modified",
@@ -85,7 +88,7 @@ export function DeleteFileDialog({ fileId, open, onClose, onSuccess }: DeleteFil
         });
         setStep('dry-run');
         setDryRunResult(null);
-      } else if (error?.message?.includes('Database is busy')) {
+      } else if (message.includes('Database is busy')) {
         toast({
           title: "Database is busy",
           description: "Please try again in a moment",
@@ -94,7 +97,7 @@ export function DeleteFileDialog({ fileId, open, onClose, onSuccess }: DeleteFil
       } else {
         toast({
           title: "Deletion failed",
-          description: error?.message || "Could not delete file",
+          description: message,
           variant: "destructive",
         });
       }

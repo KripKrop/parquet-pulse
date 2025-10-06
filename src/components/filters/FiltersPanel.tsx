@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
 import { useDebounce } from "@/hooks/useDebounce";
-import { request, getApiConfig } from "@/services/apiClient";
+import { request } from "@/services/apiClient";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
 import { motion, AnimatePresence } from "framer-motion";
 import { FacetsRequest, FacetsResponse, FacetValue } from "@/types/api";
@@ -46,7 +46,7 @@ export const FiltersPanel: React.FC<{
     try {
       setLoading(prev => visibleColumns.reduce((acc, col) => ({ ...acc, [col]: true }), prev));
 
-      const request: FacetsRequest = {
+      const requestBody: FacetsRequest = {
         filters,
         fields: visibleColumns,
         exclude_self: true,
@@ -55,22 +55,11 @@ export const FiltersPanel: React.FC<{
         source_files: selectedFiles.length > 0 ? selectedFiles : null
       };
 
-      const { baseUrl, apiKey } = getApiConfig();
-      const url = `${baseUrl}/facets`;
-      
-      const response = await fetch(url, {
+      const data: FacetsResponse = await request("/facets", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey
-        },
-        body: JSON.stringify(request),
+        body: JSON.stringify(requestBody),
         signal: controller.signal
       });
-
-      if (!response.ok) throw new Error(`Request failed: ${response.status}`);
-      
-      const data: FacetsResponse = await response.json();
       
       // Apply search filters to the facets
       const filteredFacets: Record<string, FacetValue[]> = {};

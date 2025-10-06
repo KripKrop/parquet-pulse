@@ -12,14 +12,31 @@ export async function listFiles(): Promise<FilesListResponse> {
 }
 
 export async function getFileDetails(fileId: string): Promise<FileDetailsResponse> {
-  return request<FileDetailsResponse>(`/files/${encodeURIComponent(fileId)}`);
+  try {
+    return await request<FileDetailsResponse>(`/files/${encodeURIComponent(fileId)}`);
+  } catch (error: any) {
+    if (error.status === 404) {
+      throw new Error("File not found or access denied");
+    }
+    throw error;
+  }
 }
 
 export async function deleteFileDryRun(fileId: string): Promise<FileDryRunResponse> {
-  return request<FileDryRunResponse>(`/files/${encodeURIComponent(fileId)}`, {
-    method: "DELETE",
-    body: JSON.stringify({ dry_run: true })
-  });
+  try {
+    return await request<FileDryRunResponse>(`/files/${encodeURIComponent(fileId)}`, {
+      method: "DELETE",
+      body: JSON.stringify({ dry_run: true })
+    });
+  } catch (error: any) {
+    if (error.status === 403) {
+      throw new Error("You don't have permission to delete this file");
+    }
+    if (error.status === 404) {
+      throw new Error("File not found or access denied");
+    }
+    throw error;
+  }
 }
 
 export async function deleteFileConfirm(
@@ -34,8 +51,21 @@ export async function deleteFileConfirm(
     drop_file_record: dropRecord,
   };
 
-  return request<FileDeleteResponse>(`/files/${encodeURIComponent(fileId)}`, {
-    method: "DELETE",
-    body: JSON.stringify(body)
-  });
+  try {
+    return await request<FileDeleteResponse>(`/files/${encodeURIComponent(fileId)}`, {
+      method: "DELETE",
+      body: JSON.stringify(body)
+    });
+  } catch (error: any) {
+    if (error.status === 403) {
+      throw new Error("You don't have permission to delete this file");
+    }
+    if (error.status === 404) {
+      throw new Error("File not found or access denied");
+    }
+    if (error.status === 409) {
+      throw new Error("Data changed since preview - please retry");
+    }
+    throw error;
+  }
 }

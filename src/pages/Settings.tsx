@@ -16,20 +16,42 @@ export default function Settings() {
   const { isAuthenticated, user, tenant, role } = useAuth();
 
   const handleClearData = async () => {
+    if (deleteConfirm !== "DELETE ALL") {
+      toast({
+        title: "Incorrect confirmation",
+        description: "Please type 'DELETE ALL' to confirm",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       const res = await request<{ ok: boolean; cleared: string[] }>("/admin/clear", {
         method: "POST",
-        body: JSON.stringify({ scope: "all", confirm: true, confirm_token: "DELETE ALL" }),
+        body: JSON.stringify({ scope: "all", confirm: true }),
       });
       if (res.ok) {
         toast({ title: "All data cleared", description: res.cleared.join(", ") });
         sessionStorage.setItem("ucpv.cleared", "1");
+        setDeleteConfirm("");
         navigate("/");
       }
     } catch (e: any) {
       const status = e?.status;
       if (status === 400) {
         toast({ title: "Missing confirmation", description: e.message, variant: "destructive" });
+      } else if (status === 403) {
+        toast({ 
+          title: "Access Denied", 
+          description: "Only tenant owners can delete all data", 
+          variant: "destructive" 
+        });
+      } else if (status === 404) {
+        toast({ 
+          title: "Not Found", 
+          description: "Resource not found or access denied", 
+          variant: "destructive" 
+        });
       } else {
         toast({ title: "Clear failed", description: e.message, variant: "destructive" });
       }

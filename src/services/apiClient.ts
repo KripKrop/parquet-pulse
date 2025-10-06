@@ -51,7 +51,10 @@ export function wsUrl(path: string) {
   }
 }
 
-export async function request<T = any>(path: string, init: RequestInit = {}): Promise<T> {
+export async function request<T = any>(
+  path: string, 
+  init: RequestInit = {}
+): Promise<T & { _headers?: Headers }> {
   // Check if token is expired and refresh if needed
   if (isAccessTokenExpired()) {
     const refresh = getRefreshToken();
@@ -91,7 +94,12 @@ export async function request<T = any>(path: string, init: RequestInit = {}): Pr
           if (retryRes.ok) {
             const contentType = retryRes.headers.get("content-type") || "";
             if (contentType.includes("application/json")) {
-              return retryRes.json();
+              const data = await retryRes.json();
+              // Attach headers for dataset versioning
+              if (path === "/columns") {
+                return { ...data, _headers: retryRes.headers } as any;
+              }
+              return data;
             }
             return retryRes as unknown as T;
           }
@@ -112,6 +120,22 @@ export async function request<T = any>(path: string, init: RequestInit = {}): Pr
         variant: "destructive" 
       });
     }
+
+    if (res.status === 403) {
+      toast({
+        title: "Access Denied",
+        description: "You don't have permission to perform this action.",
+        variant: "destructive"
+      });
+    }
+
+    if (res.status === 404) {
+      toast({
+        title: "Not Found",
+        description: "Resource not found or belongs to another tenant.",
+        variant: "destructive"
+      });
+    }
     
     const text = await res.text().catch(() => "");
     const err: any = new Error(text || `Request failed: ${res.status}`);
@@ -122,7 +146,12 @@ export async function request<T = any>(path: string, init: RequestInit = {}): Pr
   
   const contentType = res.headers.get("content-type") || "";
   if (contentType.includes("application/json")) {
-    return res.json();
+    const data = await res.json();
+    // Attach headers for dataset versioning
+    if (path === "/columns") {
+      return { ...data, _headers: res.headers } as any;
+    }
+    return data;
   }
   return res as unknown as T;
 }

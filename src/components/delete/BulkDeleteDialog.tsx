@@ -29,6 +29,10 @@ export const BulkDeleteDialog: React.FC<{
       const status = e?.status;
       if (status === 400) {
         toast({ title: "Invalid request", description: e.message, variant: "destructive" });
+      } else if (status === 403) {
+        toast({ title: "Access denied", description: "You don't have permission to delete data", variant: "destructive" });
+      } else if (status === 404) {
+        toast({ title: "Not found", description: "Resource not found or access denied", variant: "destructive" });
       } else {
         toast({ title: "Preview failed", description: e.message, variant: "destructive" });
       }
@@ -65,6 +69,10 @@ export const BulkDeleteDialog: React.FC<{
         });
       } else if (status === 400) {
         toast({ title: "Missing confirmation", description: e.message, variant: "destructive" });
+      } else if (status === 403) {
+        toast({ title: "Access denied", description: "You don't have permission to delete data", variant: "destructive" });
+      } else if (status === 404) {
+        toast({ title: "Not found", description: "Resource not found or access denied", variant: "destructive" });
       } else {
         toast({ title: "Delete failed", description: e.message, variant: "destructive" });
       }

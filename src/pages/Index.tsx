@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { request } from "@/services/apiClient";
 import type { ColumnsResponse } from "@/types/api";
+import { toast } from "@/hooks/use-toast";
 import { UploadPanel } from "@/components/upload/UploadPanel";
 import { FiltersPanel, type Filters } from "@/components/filters/FiltersPanel";
 import { DataTable } from "@/components/table/DataTable";
@@ -19,12 +20,19 @@ const Index = () => {
   
   const { data: colsData, refetch: refetchCols } = useQuery({
     queryKey: ["columns"],
-    queryFn: () => request<ColumnsResponse>("/columns"),
+    queryFn: async () => {
+      const response: any = await request<ColumnsResponse>("/columns");
+      return {
+        columns: response.columns,
+        datasetVersion: response._headers?.get("X-Dataset-Version") || undefined
+      };
+    },
   });
 
   const [filters, setFilters] = useState<Filters>({});
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [datasetVersion, setDatasetVersion] = useState<string | undefined>();
   
   // Initialize from URL params
   useEffect(() => {
@@ -64,6 +72,22 @@ const Index = () => {
       setRefreshKey((k) => k + 1);
     }
   }, [refetchCols]);
+
+  // Track dataset version changes
+  useEffect(() => {
+    if (colsData?.datasetVersion) {
+      if (datasetVersion && datasetVersion !== colsData.datasetVersion) {
+        // Dataset schema changed - clear filters and notify user
+        setFilters({});
+        setRefreshKey((k) => k + 1);
+        toast({
+          title: "Dataset Updated",
+          description: "Schema changed - filters have been cleared",
+        });
+      }
+      setDatasetVersion(colsData.datasetVersion);
+    }
+  }, [colsData?.datasetVersion, datasetVersion]);
 
   const columns = colsData?.columns ?? [];
 
