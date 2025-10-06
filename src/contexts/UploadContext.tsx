@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
-import { request, getApiConfig } from "@/services/apiClient";
+import { request } from "@/services/apiClient";
 import { getAccessToken } from "@/services/tokenManager";
 import { useUploadRetry } from "@/hooks/useUploadRetry";
 import type { JobStatus } from "@/types/api";
@@ -392,9 +392,7 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         }, config.requestTimeout);
         
-        const { baseUrl } = getApiConfig();
-        const uploadUrl = `${baseUrl.replace(/\/$/, '')}/upload`;
-        xhr.open('POST', uploadUrl);
+        xhr.open('POST', 'https://demoapi.crunchy.sigmoidsolutions.io/upload');
         
         const token = getAccessToken();
         if (token) {
