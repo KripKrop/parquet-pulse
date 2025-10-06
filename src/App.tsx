@@ -11,7 +11,6 @@ import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import AppHeader from "./components/layout/AppHeader";
-import { ApiClientProvider } from "./contexts/ApiClientContext";
 import { UploadProvider } from "./contexts/UploadContext";
 import { DownloadProvider } from "./contexts/DownloadContext";
 import { AuthProvider } from "./contexts/AuthContext";
@@ -22,42 +21,40 @@ const queryClient = new QueryClient();
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-    <ApiClientProvider>
-      <UploadProvider>
-        <DownloadProvider>
-          <QueryClientProvider client={queryClient}>
-            <TooltipProvider>
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AuthProvider>
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ duration: 0.3 }}
-                    className="min-h-screen"
-                  >
-                    <AppHeader />
-                    <AnimatePresence mode="wait">
-                      <Routes>
-                        <Route path="/" element={<Index />} />
-                        <Route path="/files" element={<Files />} />
-                        <Route path="/login" element={<Login />} />
-                        <Route path="/settings" element={<Settings />} />
-                        {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-                        <Route path="*" element={<NotFound />} />
-                      </Routes>
-                    </AnimatePresence>
-                    <FloatingUploadWidget />
-                    <FloatingDownloadWidgets />
-                  </motion.div>
-                </AuthProvider>
-              </BrowserRouter>
-            </TooltipProvider>
-          </QueryClientProvider>
-        </DownloadProvider>
-      </UploadProvider>
-    </ApiClientProvider>
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <UploadProvider>
+              <DownloadProvider>
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ duration: 0.3 }}
+                  className="min-h-screen"
+                >
+                  <AppHeader />
+                  <AnimatePresence mode="wait">
+                    <Routes>
+                      <Route path="/" element={<Index />} />
+                      <Route path="/files" element={<Files />} />
+                      <Route path="/login" element={<Login />} />
+                      <Route path="/settings" element={<Settings />} />
+                      {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </AnimatePresence>
+                  <FloatingUploadWidget />
+                  <FloatingDownloadWidgets />
+                </motion.div>
+              </DownloadProvider>
+            </UploadProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
   </ThemeProvider>
 );
 

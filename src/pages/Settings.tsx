@@ -1,55 +1,50 @@
 import { useState } from "react";
-import { useApiClient } from "@/contexts/ApiClientContext";
-import { request, wsUrl } from "@/services/apiClient";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "@/hooks/use-toast";
+import { request } from "@/services/apiClient";
+import { Building2, User, Shield } from "lucide-react";
+import { motion } from "framer-motion";
 
-const Settings = () => {
-  const { baseUrl: initBase, apiKey: initKey, setConfig } = useApiClient();
-  const [baseUrl, setBaseUrl] = useState(initBase);
-  const [apiKey, setApiKey] = useState(initKey);
-  const [testing, setTesting] = useState(false);
-  const [result, setResult] = useState<"ok" | "error" | null>(null);
-  const [confirmToken, setConfirmToken] = useState("");
+export default function Settings() {
+  const [deleteConfirm, setDeleteConfirm] = useState("");
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user, tenant, role } = useAuth();
 
-  const onTest = async () => {
-    setTesting(true);
-    setResult(null);
+  const handleClearData = async () => {
     try {
-      const res = await request<{ status: string }>("/health", { method: "GET" });
-      setResult(res.status === "ok" ? "ok" : "error");
-    } catch {
-      setResult("error");
-    } finally {
-      setTesting(false);
+      const res = await request<{ ok: boolean; cleared: string[] }>("/admin/clear", {
+        method: "POST",
+        body: JSON.stringify({ scope: "all", confirm: true, confirm_token: "DELETE ALL" }),
+      });
+      if (res.ok) {
+        toast({ title: "All data cleared", description: res.cleared.join(", ") });
+        sessionStorage.setItem("ucpv.cleared", "1");
+        navigate("/");
+      }
+    } catch (e: any) {
+      const status = e?.status;
+      if (status === 400) {
+        toast({ title: "Missing confirmation", description: e.message, variant: "destructive" });
+      } else {
+        toast({ title: "Clear failed", description: e.message, variant: "destructive" });
+      }
     }
   };
 
-  const onSave = () => {
-    setConfig({ baseUrl, apiKey });
-    toast({ title: "Settings saved" });
-  };
-
-  const resolvedWs = wsUrl("/ws/status/example");
-
   return (
-    <motion.main 
+    <motion.main
       className="container mx-auto max-w-3xl py-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
       <h1 className="sr-only">Settings - Crunch</h1>
-      
+
       {/* Theme Settings */}
       <motion.div
         initial={{ opacity: 0, y: 10 }}
@@ -64,7 +59,7 @@ const Settings = () => {
           <CardContent>
             <div className="flex items-center justify-between">
               <div>
-                <Label className="text-base font-medium">Theme</Label>
+                <label className="text-base font-medium">Theme</label>
                 <p className="text-sm text-muted-foreground">Switch between light and dark modes</p>
               </div>
               <ThemeToggle />
@@ -75,7 +70,7 @@ const Settings = () => {
 
       <div className="h-6" />
 
-      {/* API Settings - Only show when logged in */}
+      {/* Account Information */}
       {isAuthenticated && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -84,39 +79,45 @@ const Settings = () => {
         >
           <Card className="glass-card">
             <CardHeader>
-              <CardTitle>API Configuration</CardTitle>
-              <CardDescription>Configure API connectivity</CardDescription>
+              <CardTitle>Account Information</CardTitle>
+              <CardDescription>Your current user and tenant details</CardDescription>
             </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid gap-3">
-              <Label htmlFor="base">API Base URL</Label>
-              <Input id="base" value={baseUrl} onChange={(e) => setBaseUrl(e.target.value)} placeholder="http://localhost:8000" />
-            </div>
-            <div className="grid gap-3">
-              <Label htmlFor="key">API Key</Label>
-              <Input id="key" type="password" value={apiKey} onChange={(e) => setApiKey(e.target.value)} placeholder="changeme" />
-            </div>
-            <div className="flex items-center gap-3">
-              <Button variant="secondary" onClick={onTest} disabled={testing} aria-busy={testing}>
-                {testing ? "Testing..." : "Test Connection"}
-              </Button>
-              {result === "ok" && <span className="text-sm text-muted-foreground">Health: OK</span>}
-              {result === "error" && <span className="text-sm text-destructive">Health: ERROR</span>}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              WS URL preview: <code className="px-1 py-0.5 rounded bg-secondary">{resolvedWs}</code>
-            </div>
-            <div className="pt-2">
-              <Button onClick={onSave}>Save</Button>
-            </div>
-          </CardContent>
+            <CardContent className="space-y-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <User className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">User Email</p>
+                    <p className="text-sm text-muted-foreground">{user?.email}</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                  <Building2 className="h-5 w-5 text-muted-foreground" />
+                  <div>
+                    <p className="text-sm font-medium">Organization</p>
+                    <p className="text-sm text-muted-foreground">{tenant?.name}</p>
+                  </div>
+                </div>
+
+                {role && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/50">
+                    <Shield className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Role</p>
+                      <p className="text-sm text-muted-foreground capitalize">{role}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CardContent>
           </Card>
         </motion.div>
       )}
 
       {isAuthenticated && <div className="h-6" />}
 
-      {/* Danger Zone - Only show when logged in */}
+      {/* Danger Zone */}
       {isAuthenticated && (
         <motion.div
           initial={{ opacity: 0, y: 10 }}
@@ -128,48 +129,34 @@ const Settings = () => {
               <CardTitle className="text-destructive">Danger Zone</CardTitle>
               <CardDescription>Irreversible operations. Proceed with caution.</CardDescription>
             </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="confirm">Type DELETE ALL to enable</Label>
-              <Input id="confirm" value={confirmToken} onChange={(e) => setConfirmToken(e.target.value)} placeholder="DELETE ALL" />
-              <p className="text-xs text-muted-foreground">
-                This wipes the entire dataset, file records, uploaded blobs, and Redis job statuses.
-              </p>
-            </div>
-            <div>
-              <Button
-                variant="destructive"
-                disabled={confirmToken !== "DELETE ALL"}
-                onClick={async () => {
-                  try {
-                    const res = await request<{ ok: boolean; cleared: string[] }>("/admin/clear", {
-                      method: "POST",
-                      body: JSON.stringify({ scope: "all", confirm: true, confirm_token: "DELETE ALL" }),
-                    });
-                    if (res.ok) {
-                      toast({ title: "All data cleared", description: res.cleared.join(", ") });
-                      sessionStorage.setItem("ucpv.cleared", "1");
-                      navigate("/");
-                    }
-                  } catch (e: any) {
-                    const status = e?.status;
-                    if (status === 400) {
-                      toast({ title: "Missing confirmation", description: e.message, variant: "destructive" });
-                    } else {
-                      toast({ title: "Clear failed", description: e.message, variant: "destructive" });
-                    }
-                  }
-                }}
-              >
-                DELETE EVERYTHING
-              </Button>
-            </div>
-          </CardContent>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="confirm" className="text-sm font-medium">
+                  Type DELETE ALL to enable
+                </label>
+                <Input
+                  id="confirm"
+                  value={deleteConfirm}
+                  onChange={(e) => setDeleteConfirm(e.target.value)}
+                  placeholder="DELETE ALL"
+                />
+                <p className="text-xs text-muted-foreground">
+                  This wipes the entire dataset, file records, uploaded blobs, and Redis job statuses.
+                </p>
+              </div>
+              <div>
+                <Button
+                  variant="destructive"
+                  disabled={deleteConfirm !== "DELETE ALL"}
+                  onClick={handleClearData}
+                >
+                  DELETE EVERYTHING
+                </Button>
+              </div>
+            </CardContent>
           </Card>
         </motion.div>
       )}
     </motion.main>
   );
-};
-
-export default Settings;
+}

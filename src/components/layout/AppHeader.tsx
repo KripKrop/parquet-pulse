@@ -1,11 +1,11 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { Settings2, Database, Files } from "lucide-react";
+import { Settings2, Database, Files, Building2 } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 const AppHeader = () => {
-  const { isAuthenticated, logout, user } = useAuth();
+  const { isAuthenticated, logout, user, tenant } = useAuth();
   const location = useLocation();
   return (
     <motion.header 
@@ -71,6 +71,10 @@ const AppHeader = () => {
 
           {isAuthenticated && (
             <div className="flex items-center gap-4 text-sm">
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
+                <Building2 className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium">{tenant?.name}</span>
+              </div>
               <span className="text-muted-foreground">
                 {user?.email}
               </span>

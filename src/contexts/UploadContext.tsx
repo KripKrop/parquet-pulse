@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useRef, useEffect, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { request, getApiConfig } from "@/services/apiClient";
+import { getAccessToken } from "@/services/tokenManager";
 import { useUploadRetry } from "@/hooks/useUploadRetry";
 import type { JobStatus } from "@/types/api";
 import type { UploadFile, UploadConfig, UploadStats, UploadValidationResult } from "@/types/upload";
@@ -391,10 +392,15 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
         }, config.requestTimeout);
         
-        const { baseUrl, apiKey } = getApiConfig();
+        const { baseUrl } = getApiConfig();
         const uploadUrl = `${baseUrl.replace(/\/$/, '')}/upload`;
         xhr.open('POST', uploadUrl);
-        xhr.setRequestHeader('x-api-key', apiKey);
+        
+        const token = getAccessToken();
+        if (token) {
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        }
+        
         xhr.send(fd);
       });
       

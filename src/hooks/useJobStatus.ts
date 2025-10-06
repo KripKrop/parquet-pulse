@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { request, wsUrl } from "@/services/apiClient";
+import { getAccessToken } from "@/services/tokenManager";
 import type { JobStatus } from "@/types/api";
 
 export function useJobStatus(jobId?: string) {
@@ -30,7 +31,11 @@ export function useJobStatus(jobId?: string) {
     };
 
     try {
-      ws = new WebSocket(wsUrl(`/ws/status/${jobId}`));
+      const token = getAccessToken();
+      const url = token 
+        ? `${wsUrl(`/ws/status/${jobId}`)}?token=${encodeURIComponent(token)}`
+        : wsUrl(`/ws/status/${jobId}`);
+      ws = new WebSocket(url);
       ws.onmessage = (ev) => {
         try {
           const s: JobStatus = JSON.parse(ev.data);
