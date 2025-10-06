@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback } from "react";
 import { toast } from "@/hooks/use-toast";
 import { request } from "@/services/apiClient";
+import { getAccessToken } from "@/services/tokenManager";
 
 export interface DownloadJob {
   id: string;
@@ -54,19 +55,40 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setDownloads(prev => [...prev, newDownload]);
 
     try {
-      const res = await request<Response>("/stream", {
+      const token = getAccessToken();
+      const requestHeaders: HeadersInit = {
+        "Content-Type": "application/json"
+      };
+      
+      if (token) {
+        requestHeaders["Authorization"] = `Bearer ${token}`;
+      }
+
+      const res = await fetch("https://demoapi.crunchy.sigmoidsolutions.io/stream", {
         method: "POST",
+        headers: requestHeaders,
         body: JSON.stringify({ filters, fields }),
         signal: controller.signal,
       });
+
+      if (!res.ok) {
+        if (res.status === 403) {
+          throw new Error("Access denied - you don't have permission to download this data");
+        }
+        if (res.status === 404) {
+          throw new Error("Resource not found or access denied");
+        }
+        throw new Error(`Download failed: ${res.status} ${res.statusText}`);
+      }
 
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let { value, done } = await reader.read();
       let buf = "";
-      let headers: string[] | null = fields ? [...fields] : null;
+      let csvHeaders: string[] | null = fields ? [...fields] : null;
       const chunks: string[] = [];
       let rowCount = 0;
+      let lastProgressUpdate = Date.now();
 
       while (!done) {
         buf += decoder.decode(value, { stream: true });
@@ -75,32 +97,49 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
           const line = buf.slice(0, idx);
           buf = buf.slice(idx + 1);
           if (!line.trim()) continue;
-          const obj = JSON.parse(line);
-          if (!headers) headers = Object.keys(obj);
-          if (chunks.length === 0) {
-            chunks.push(headers.join(",") + "\n");
-          }
-          const row = headers.map((h) => toCsvValue(obj[h])).join(",") + "\n";
-          chunks.push(row);
-          rowCount++;
           
-          setDownloads(prev => prev.map(d => 
-            d.id === id ? { ...d, totalRows: rowCount } : d
-          ));
+          try {
+            const obj = JSON.parse(line);
+            if (!csvHeaders) csvHeaders = Object.keys(obj);
+            if (chunks.length === 0) {
+              chunks.push(csvHeaders.join(",") + "\n");
+            }
+            const row = csvHeaders.map((h) => toCsvValue(obj[h])).join(",") + "\n";
+            chunks.push(row);
+            rowCount++;
+            
+            // Update progress periodically (every 500ms)
+            const now = Date.now();
+            if (now - lastProgressUpdate > 500) {
+              setDownloads(prev => prev.map(d => 
+                d.id === id ? { ...d, totalRows: rowCount, progress: 50 } : d
+              ));
+              lastProgressUpdate = now;
+            }
+          } catch (parseError) {
+            console.error("Failed to parse JSON line:", parseError, line);
+            // Continue processing other lines
+            continue;
+          }
         }
         ({ value, done } = await reader.read());
       }
 
       // flush remainder
       if (buf.trim()) {
-        const obj = JSON.parse(buf);
-        if (!headers) headers = Object.keys(obj);
-        if (chunks.length === 0) chunks.push(headers.join(",") + "\n");
-        const row = headers.map((h) => toCsvValue(obj[h])).join(",") + "\n";
-        chunks.push(row);
-        rowCount++;
+        try {
+          const obj = JSON.parse(buf);
+          if (!csvHeaders) csvHeaders = Object.keys(obj);
+          if (chunks.length === 0) chunks.push(csvHeaders.join(",") + "\n");
+          const row = csvHeaders.map((h) => toCsvValue(obj[h])).join(",") + "\n";
+          chunks.push(row);
+          rowCount++;
+        } catch (parseError) {
+          console.error("Failed to parse final JSON:", parseError);
+        }
       }
 
+      // Create and download the file
       const blob = new Blob(chunks, { type: "text/csv;charset=utf-8" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -117,7 +156,7 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       toast({ 
         title: "Download complete", 
-        description: `${rowCount} rows exported to ${filename}` 
+        description: `${rowCount.toLocaleString()} rows exported to ${filename}` 
       });
 
     } catch (error: any) {
@@ -127,14 +166,16 @@ export const DownloadProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         ));
         toast({ title: "Download cancelled" });
       } else {
+        const errorMessage = error.message || String(error);
         setDownloads(prev => prev.map(d => 
-          d.id === id ? { ...d, status: 'failed', error: String(error.message || error) } : d
+          d.id === id ? { ...d, status: 'failed', error: errorMessage } : d
         ));
         toast({ 
           title: "Download failed", 
-          description: String(error.message || error), 
+          description: errorMessage, 
           variant: "destructive" 
         });
+        console.error("Download error:", error);
       }
     }
   }, []);

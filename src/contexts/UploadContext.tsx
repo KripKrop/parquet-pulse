@@ -422,11 +422,23 @@ export const UploadProvider: React.FC<{ children: React.ReactNode }> = ({ childr
                 status: "completed",
                 isComplete: true, 
                 uploadProgress: 100,
+                processingProgress: 100,
                 endTime: Date.now()
               }
             : f
         ));
-        toast({ title: "Already processed", description: uploadFile.file.name });
+        toast({ 
+          title: "File already exists", 
+          description: `${uploadFile.file.name} was skipped - already processed`, 
+          variant: "default" 
+        });
+        
+        showBrowserNotification(
+          'File Skipped ⚠️',
+          `"${uploadFile.file.name}" already exists and was skipped.`,
+          true
+        );
+        
         return;
       }
       
