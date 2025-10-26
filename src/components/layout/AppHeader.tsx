@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { Settings2, Database, Files, Building2 } from "lucide-react";
+import { Settings2, Database, Files, Building2, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +50,20 @@ const AppHeader = () => {
               >
                 <Files className="h-4 w-4" />
                 <span className="text-sm">Files</span>
+              </NavLink>
+            </motion.div>
+
+            <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <NavLink
+                to="/ai"
+                className={({ isActive }) =>
+                  `inline-flex items-center gap-2 px-3 py-1.5 rounded-md glass-button transition-all duration-200 hover:glass-button-hover ${
+                    isActive ? "glass-button-active" : ""
+                  }`
+                }
+              >
+                <Sparkles className="h-4 w-4" />
+                <span className="text-sm">AI</span>
               </NavLink>
             </motion.div>
 

@@ -146,3 +146,66 @@ export type ClearResponse = {
   ok: boolean
   cleared: string[]
 }
+
+// RAG Reindex Types
+export type RAGReindexRequest = {
+  source_files?: string[];
+};
+
+export type RAGReindexResponse = {
+  tenant_id: string;
+  dataset_version: string;
+  row_count: number;
+  column_count: number;
+  cards_indexed: number;
+};
+
+// RAG Search Types
+export type RAGSearchRequest = {
+  question: string;
+  k?: number;
+  source_files?: string[];
+};
+
+export type RAGSearchHit = {
+  score: number;
+  text: string;
+  metadata: {
+    column_name: string;
+    dtype: string;
+    distinct_count?: number;
+    null_count?: number;
+    sample_values?: string[];
+    min_value?: any;
+    max_value?: any;
+    mean_value?: any;
+  };
+};
+
+export type RAGSearchResponse = {
+  hits: RAGSearchHit[];
+};
+
+// Ask Types
+export type AskRequest = {
+  question: string;
+  filters?: Record<string, string[]>;
+  fields?: string[];
+  max_rows?: number;
+  source_files?: string[];
+  count_only?: boolean;
+};
+
+export type AskResponse = {
+  intent: "describe" | "data";
+  mode?: "count" | "rows";
+  text?: string;
+  rows?: Record<string, any>[];
+  total?: number;
+  applied_filters?: Record<string, string[]>;
+  used_fields?: string[];
+  applied_limit?: number;
+  planner_text?: string;
+  context: RAGSearchHit[];
+  error?: string;
+};
