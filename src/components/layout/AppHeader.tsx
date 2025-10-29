@@ -1,12 +1,31 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
-import { Settings2, Database, Files, Building2, Sparkles } from "lucide-react";
+import { Settings2, Database, Files, Building2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAuth } from "@/contexts/AuthContext";
+import { useAI } from "@/contexts/AIContext";
+import { useDatasetVersion } from "@/hooks/useDatasetVersionCheck";
 
 const AppHeader = () => {
   const { isAuthenticated, logout, user, tenant } = useAuth();
+  const { indexStatus } = useAI();
+  const { data: currentVersion } = useDatasetVersion();
   const location = useLocation();
+
+  const isStale = indexStatus && 
+                  currentVersion && 
+                  currentVersion !== "unknown" &&
+                  indexStatus.dataset_version !== currentVersion;
+  
+  const hasIndex = indexStatus !== null;
+
   return (
     <motion.header 
       className="glass-panel border-b sticky top-0 z-50"
@@ -85,6 +104,70 @@ const AppHeader = () => {
 
           {isAuthenticated && (
             <div className="flex items-center gap-4 text-sm">
+              {/* AI Index Status Indicator */}
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      {hasIndex ? (
+                        <Badge 
+                          variant={isStale ? "destructive" : "outline"}
+                          className="gap-1 cursor-pointer"
+                          onClick={() => window.location.href = "/ai"}
+                        >
+                          {isStale ? (
+                            <>
+                              <AlertCircle className="h-3 w-3" />
+                              AI Outdated
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="h-3 w-3" />
+                              AI Ready
+                            </>
+                          )}
+                        </Badge>
+                      ) : (
+                        <Badge 
+                          variant="secondary"
+                          className="gap-1 cursor-pointer"
+                          onClick={() => window.location.href = "/ai"}
+                        >
+                          <Database className="h-3 w-3" />
+                          Build AI
+                        </Badge>
+                      )}
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      {hasIndex ? (
+                        <>
+                          <p className="font-medium">
+                            {isStale ? "Index is outdated" : "AI is ready to use"}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {indexStatus?.cards_indexed} columns indexed
+                          </p>
+                          {isStale && (
+                            <p className="text-xs text-destructive">
+                              Click to rebuild
+                            </p>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <p className="font-medium">No AI index</p>
+                          <p className="text-xs text-muted-foreground">
+                            Click to build your first index
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">{tenant?.name}</span>

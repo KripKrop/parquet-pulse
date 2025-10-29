@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Database, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Loader2, Database, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { useAI } from "@/contexts/AIContext";
+import { useDatasetVersion } from "@/hooks/useDatasetVersionCheck";
 import { reindexRAG } from "@/services/ragApi";
 import { toast } from "@/hooks/use-toast";
 import { useQuery } from "@tanstack/react-query";
@@ -11,7 +13,8 @@ import { listFiles } from "@/services/filesApi";
 import { MultiSelect } from "@/components/ui/multi-select";
 
 export function IndexManagement() {
-  const { indexStatus, setIndexStatus, isIndexing, setIsIndexing } = useAI();
+  const { indexStatus, setIndexStatus, isIndexing, setIsIndexing, lastIndexedFiles, setLastIndexedFiles } = useAI();
+  const { data: currentVersion } = useDatasetVersion();
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   
   const { data: filesData } = useQuery({
@@ -19,14 +22,23 @@ export function IndexManagement() {
     queryFn: listFiles,
   });
 
+  const isStale = indexStatus && 
+                  currentVersion && 
+                  currentVersion !== "unknown" &&
+                  indexStatus.dataset_version !== currentVersion;
+
   const handleReindex = async () => {
     setIsIndexing(true);
     try {
+      const filesToIndex = selectedFiles.length > 0 ? selectedFiles : undefined;
+      
       const result = await reindexRAG({
-        source_files: selectedFiles.length > 0 ? selectedFiles : undefined,
+        source_files: filesToIndex,
       });
       
       setIndexStatus(result);
+      setLastIndexedFiles(filesToIndex || filesData?.files.map(f => f.file_id) || []);
+      
       toast({
         title: "Index rebuilt successfully",
         description: `Indexed ${result.cards_indexed} column cards from ${result.row_count.toLocaleString()} rows`,
@@ -45,6 +57,27 @@ export function IndexManagement() {
     }
   };
 
+  // Enhance file options with metadata
+  const fileOptions = (filesData?.files || []).map(f => {
+    const isIndexed = lastIndexedFiles.includes(f.file_id);
+    const isNew = !isIndexed && indexStatus !== null;
+    
+    return {
+      value: f.file_id,
+      label: `${f.filename} ${isNew ? "🆕" : isIndexed ? "✓" : ""}`,
+      metadata: {
+        uploaded: f.uploaded_at,
+        rows: f.current_row_count,
+        indexed: isIndexed,
+        isNew: isNew
+      }
+    };
+  });
+
+  const selectedRowCount = filesData?.files
+    .filter(f => selectedFiles.includes(f.file_id))
+    .reduce((sum, f) => sum + (f.current_row_count || 0), 0) || 0;
+
   return (
     <Card className="glass-card">
       <CardHeader>
@@ -59,30 +92,109 @@ export function IndexManagement() {
             </CardDescription>
           </div>
           {indexStatus && (
-            <Badge variant="outline" className="gap-2">
-              <CheckCircle2 className="h-3 w-3" />
-              v{indexStatus.dataset_version}
+            <Badge 
+              variant={isStale ? "destructive" : "outline"} 
+              className="gap-2"
+            >
+              {isStale ? (
+                <>
+                  <AlertCircle className="h-3 w-3" />
+                  Outdated
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="h-3 w-3" />
+                  v{indexStatus.dataset_version}
+                </>
+              )}
             </Badge>
           )}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Stale index warning banner */}
+        {isStale && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription className="flex items-center justify-between">
+              <span className="text-sm">
+                Index is outdated. Dataset version changed from{" "}
+                <code className="bg-background/20 px-1 rounded">
+                  {indexStatus?.dataset_version}
+                </code>{" "}
+                to{" "}
+                <code className="bg-background/20 px-1 rounded">
+                  {currentVersion}
+                </code>
+              </span>
+              <Button 
+                size="sm" 
+                variant="outline"
+                onClick={handleReindex}
+                disabled={isIndexing}
+              >
+                {isIndexing ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                    Rebuilding...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-3 w-3 mr-2" />
+                    Auto-rebuild
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* File scope selector */}
         <div className="space-y-2">
-          <label className="text-sm font-medium">Scope (optional)</label>
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-medium">Scope (optional)</label>
+            {selectedFiles.length > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setSelectedFiles([])}
+              >
+                Select All
+              </Button>
+            )}
+          </div>
+          
           <MultiSelect
-            options={filesData?.files.map(f => ({ 
-              value: f.file_id, 
-              label: f.filename 
-            })) || []}
+            options={fileOptions.map(f => ({
+              value: f.value,
+              label: f.label
+            }))}
             selected={selectedFiles}
             onChange={setSelectedFiles}
-            placeholder="All files"
+            placeholder="All files (recommended)"
           />
-          <p className="text-xs text-muted-foreground">
-            Leave empty to index all data
-          </p>
+          
+          <div className="text-xs text-muted-foreground space-y-1">
+            <p>• Leave empty to index all files (recommended)</p>
+            <p>• Select specific files to rebuild only their columns</p>
+            {indexStatus && lastIndexedFiles.length > 0 && (
+              <p className="text-primary">
+                • Current index includes {lastIndexedFiles.length} file(s)
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Show file breakdown when specific files are selected */}
+        {selectedFiles.length > 0 && (
+          <Alert>
+            <Info className="h-4 w-4" />
+            <AlertDescription className="text-xs">
+              Indexing {selectedFiles.length} selected file(s).{" "}
+              {selectedRowCount.toLocaleString()} rows will be profiled.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Index statistics */}
         {indexStatus && (
@@ -127,7 +239,7 @@ export function IndexManagement() {
 
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground">
-            <AlertTriangle className="h-3 w-3 inline mr-1" />
+            <AlertCircle className="h-3 w-3 inline mr-1" />
             Index artifacts stored in /data/rag (FAISS + JSON)
           </p>
           <p className="text-xs text-muted-foreground">

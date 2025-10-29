@@ -14,6 +14,7 @@ import { Separator } from "@/components/ui/separator";
 import { BulkDeleteDialog } from "@/components/delete/BulkDeleteDialog";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
+import { decodeFilters } from "@/utils/filterEncoding";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -41,7 +42,28 @@ const Index = () => {
       const fileIds = filesParam.split(',').filter(Boolean);
       setSelectedFiles(fileIds);
     }
-  }, [searchParams]);
+
+    // NEW: Load filters from URL parameter
+    const encodedFilters = searchParams.get('f');
+    if (encodedFilters) {
+      try {
+        const decodedFilters = decodeFilters(encodedFilters);
+        setFilters(decodedFilters);
+        
+        toast({
+          title: "Filters applied",
+          description: "Loaded filters from AI query",
+        });
+        
+        // Clear the URL parameter after applying
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete('f');
+        setSearchParams(newParams, { replace: true });
+      } catch (error) {
+        console.error("Failed to decode filters:", error);
+      }
+    }
+  }, []); // Only run on mount
 
   // Update URL when files change
   useEffect(() => {

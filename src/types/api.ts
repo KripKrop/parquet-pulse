@@ -189,6 +189,10 @@ export type RAGSearchResponse = {
 // Ask Types
 export type AskRequest = {
   question: string;
+  conversation_history?: Array<{
+    role: "user" | "assistant";
+    content: string;
+  }>;
   filters?: Record<string, string[]>;
   fields?: string[];
   max_rows?: number;
