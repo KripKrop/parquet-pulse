@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Loader2, Database, CheckCircle2, AlertCircle, Info } from "lucide-react";
 import { useAI } from "@/contexts/AIContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDatasetVersion } from "@/hooks/useDatasetVersionCheck";
 import { reindexRAG } from "@/services/ragApi";
 import { toast } from "@/hooks/use-toast";
@@ -14,7 +15,8 @@ import { MultiSelect } from "@/components/ui/multi-select";
 
 export function IndexManagement() {
   const { indexStatus, setIndexStatus, isIndexing, setIsIndexing, lastIndexedFiles, setLastIndexedFiles } = useAI();
-  const { data: currentVersion } = useDatasetVersion();
+  const { isAuthenticated } = useAuth();
+  const { data: currentVersion } = useDatasetVersion(isAuthenticated);
   const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
   
   const { data: filesData } = useQuery({

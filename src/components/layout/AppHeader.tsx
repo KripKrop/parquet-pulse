@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Settings2, Database, Files, Building2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ const AppHeader = () => {
   const { indexStatus } = useAI();
   const { data: currentVersion } = useDatasetVersion(isAuthenticated);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isStale = indexStatus && 
                   currentVersion && 
@@ -113,7 +114,7 @@ const AppHeader = () => {
                         <Badge 
                           variant={isStale ? "destructive" : "outline"}
                           className="gap-1 cursor-pointer"
-                          onClick={() => window.location.href = "/ai"}
+                          onClick={() => navigate("/ai")}
                         >
                           {isStale ? (
                             <>
@@ -131,7 +132,7 @@ const AppHeader = () => {
                         <Badge 
                           variant="secondary"
                           className="gap-1 cursor-pointer"
-                          onClick={() => window.location.href = "/ai"}
+                          onClick={() => navigate("/ai")}
                         >
                           <Database className="h-3 w-3" />
                           Build AI
