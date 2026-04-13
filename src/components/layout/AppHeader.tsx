@@ -114,7 +114,7 @@ const AppHeader = () => {
                         <Badge 
                           variant={isStale ? "destructive" : "outline"}
                           className="gap-1 cursor-pointer"
-                          onClick={() => window.location.href = "/ai"}
+                          onClick={() => navigate("/ai")}
                         >
                           {isStale ? (
                             <>
@@ -132,7 +132,7 @@ const AppHeader = () => {
                         <Badge 
                           variant="secondary"
                           className="gap-1 cursor-pointer"
-                          onClick={() => window.location.href = "/ai"}
+                          onClick={() => navigate("/ai")}
                         >
                           <Database className="h-3 w-3" />
                           Build AI
