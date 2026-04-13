@@ -1,76 +1,46 @@
 
 
-# Fix: Repeated "Unauthorized" Notifications on Page Load
+# Fix: Three Critical Issues
+
+## Issues Identified
+
+1. **`/ai` page shows "Not Found"**: The route `/ai` IS defined in `App.tsx` (line 46). However, the AI index badge in `AppHeader` uses `window.location.href = "/ai"` (lines 116, 134) which triggers a full page reload. Since tokens are stored in memory, this causes token loss, which triggers the auth guard redirect to `/login` before the AI page renders -- making it appear as "Not Found". The nav link at line 76-87 uses React Router's `NavLink` correctly, so clicking the "AI" nav item should work. The "Not Found" is likely caused by the auth redirect intercepting before the page renders.
+
+2. **New tab requires re-login**: Tokens are stored purely in-memory variables (`let accessToken`, `let refreshToken` in `tokenManager.ts`). Opening a new tab creates a new JS context with null tokens.
+
+3. **Browser back/forward or URL bar navigation requires re-login**: Same root cause -- `window.location.href` in the AI badge causes full page reload, wiping in-memory tokens.
 
 ## Root Cause
 
-The `useDatasetVersion()` hook (called in `AppHeader`) fires `GET /columns` every 30 seconds **regardless of authentication state**. When the user is not logged in (or tokens are missing/expired), each request returns 401 and the `apiClient.ts` error handler shows an "Unauthorized" toast. Since `AppHeader` renders on every page including `/login`, this creates a flood of notifications.
+All three issues stem from **in-memory-only token storage**. The tokens must survive page reloads and new tabs.
 
-Additionally, the `Index.tsx` page's `/columns` query also fires before the auth redirect completes.
+## Fix Plan
 
-## Fix
+### 1. Persist tokens in `sessionStorage` (same tab across reloads) + `localStorage` (cross-tab)
 
-### 1. Guard `useDatasetVersion` hook with auth state
+**File: `src/services/tokenManager.ts`**
+- On `setTokens()`: write to both in-memory variables AND `localStorage`
+- On `getAccessToken()` / `getRefreshToken()`: if in-memory is null, hydrate from `localStorage`
+- On `clearTokens()`: clear both memory and `localStorage`
+- Key names: `crunch_access_token`, `crunch_refresh_token`
 
-In `src/hooks/useDatasetVersionCheck.ts`, add an `enabled` parameter so consumers can disable it when not authenticated:
+### 2. Fix `window.location.href` in AppHeader to use React Router navigation
 
-```typescript
-export function useDatasetVersion(enabled: boolean = true) {
-  return useQuery({
-    queryKey: ["dataset-version"],
-    queryFn: async () => { ... },
-    enabled,              // <-- only fetch when true
-    refetchInterval: enabled ? 30000 : false,
-    staleTime: 20000,
-  });
-}
-```
+**File: `src/components/layout/AppHeader.tsx`**
+- Replace `onClick={() => window.location.href = "/ai"}` with React Router's `useNavigate()` hook: `onClick={() => navigate("/ai")}`
+- This avoids full page reloads entirely
 
-### 2. Pass `isAuthenticated` in `AppHeader.tsx`
+### 3. Pass `isAuthenticated` to `useDatasetVersion` in AI sub-components
 
-```typescript
-const { isAuthenticated, ... } = useAuth();
-const { data: currentVersion } = useDatasetVersion(isAuthenticated);
-```
-
-### 3. Guard queries in `Index.tsx`
-
-Add `useAuth()` and gate the `/columns` query:
-
-```typescript
-const { isAuthenticated } = useAuth();
-
-const { data: colsData } = useQuery({
-  queryKey: ["columns"],
-  queryFn: ...,
-  enabled: isAuthenticated,
-});
-```
-
-### 4. Suppress duplicate 401 toasts in `apiClient.ts`
-
-When there's no refresh token and the user isn't authenticated, avoid showing the toast (the auth redirect will handle it):
-
-```typescript
-if (res.status === 401) {
-  const refresh = getRefreshToken();
-  if (refresh && !isRefreshing) {
-    // ... existing refresh logic ...
-  }
-  // Only toast if we actually had a token (i.e. session expired, not "never logged in")
-  if (getAccessToken()) {
-    toast({ title: "Unauthorized", ... });
-  }
-  // throw without toasting for unauthenticated requests
-}
-```
+**Files: `src/components/ai/IndexManagement.tsx`, `src/components/ai/ConversationWorkspace.tsx`**
+- Import `useAuth` and pass `isAuthenticated` to `useDatasetVersion(isAuthenticated)` to prevent unauthenticated API calls from these components too
 
 ### Files Modified
 
 | File | Change |
 |------|--------|
-| `src/hooks/useDatasetVersionCheck.ts` | Add `enabled` param |
-| `src/components/layout/AppHeader.tsx` | Pass `isAuthenticated` to hook |
-| `src/pages/Index.tsx` | Gate `/columns` query with auth |
-| `src/services/apiClient.ts` | Suppress 401 toast when no token exists |
+| `src/services/tokenManager.ts` | Persist/hydrate tokens from `localStorage` |
+| `src/components/layout/AppHeader.tsx` | Use `navigate("/ai")` instead of `window.location.href` |
+| `src/components/ai/IndexManagement.tsx` | Guard `useDatasetVersion` with auth |
+| `src/components/ai/ConversationWorkspace.tsx` | Guard `useDatasetVersion` with auth |
 
