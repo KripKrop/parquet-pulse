@@ -1,4 +1,4 @@
-import { Link, NavLink, useLocation } from "react-router-dom";
+import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
 import { Settings2, Database, Files, Building2, Sparkles, CheckCircle2, AlertCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ const AppHeader = () => {
   const { indexStatus } = useAI();
   const { data: currentVersion } = useDatasetVersion(isAuthenticated);
   const location = useLocation();
+  const navigate = useNavigate();
 
   const isStale = indexStatus && 
                   currentVersion && 

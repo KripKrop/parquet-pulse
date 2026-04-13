@@ -22,6 +22,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useAI } from "@/contexts/AIContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { useDatasetVersion } from "@/hooks/useDatasetVersionCheck";
 import { askQuestion } from "@/services/ragApi";
 import { toast } from "@/hooks/use-toast";
@@ -43,7 +44,8 @@ export function ConversationWorkspace() {
     addSavedQuery,
     removeSavedQuery
   } = useAI();
-  const { data: currentVersion } = useDatasetVersion();
+  const { isAuthenticated } = useAuth();
+  const { data: currentVersion } = useDatasetVersion(isAuthenticated);
   const [question, setQuestion] = useState("");
   const [isAsking, setIsAsking] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
