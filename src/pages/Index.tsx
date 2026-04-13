@@ -15,9 +15,11 @@ import { BulkDeleteDialog } from "@/components/delete/BulkDeleteDialog";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { decodeFilters } from "@/utils/filterEncoding";
+import { useAuth } from "@/contexts/AuthContext";
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { isAuthenticated } = useAuth();
   
   const { data: colsData, refetch: refetchCols } = useQuery({
     queryKey: ["columns"],
@@ -28,6 +30,7 @@ const Index = () => {
         datasetVersion: response._headers?.get("X-Dataset-Version") || undefined
       };
     },
+    enabled: isAuthenticated,
   });
 
   const [filters, setFilters] = useState<Filters>({});

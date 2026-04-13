@@ -16,7 +16,7 @@ import { useDatasetVersion } from "@/hooks/useDatasetVersionCheck";
 const AppHeader = () => {
   const { isAuthenticated, logout, user, tenant } = useAuth();
   const { indexStatus } = useAI();
-  const { data: currentVersion } = useDatasetVersion();
+  const { data: currentVersion } = useDatasetVersion(isAuthenticated);
   const location = useLocation();
 
   const isStale = indexStatus && 
