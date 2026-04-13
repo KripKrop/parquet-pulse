@@ -114,11 +114,13 @@ export async function request<T = any>(
         }
       }
       
-      toast({ 
-        title: "Unauthorized", 
-        description: "Please log in again.", 
-        variant: "destructive" 
-      });
+      if (getAccessToken()) {
+        toast({ 
+          title: "Unauthorized", 
+          description: "Please log in again.", 
+          variant: "destructive" 
+        });
+      }
     }
 
     if (res.status === 403) {
