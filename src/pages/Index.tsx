@@ -133,14 +133,11 @@ const Index = () => {
   }, [colsData?.datasetVersion, datasetVersion]);
 
   const handleRowClick = useCallback((row: Record<string, any>, index: number) => {
-    setSelectedRowIndex(index);
-    // We need to track the row data - store it via a ref-like pattern
-    setAllRows((prev) => {
-      // Ensure the row exists at this index
-      const updated = [...prev];
-      updated[index] = row;
-      return updated;
-    });
+    setSelectedRow({ row, index });
+  }, []);
+
+  const handleRowsChange = useCallback((rows: Record<string, any>[]) => {
+    setRowsSnapshot(rows);
   }, []);
 
   const containerVariants = {
@@ -246,13 +243,21 @@ const Index = () => {
       </motion.main>
 
       <RowDetailModal
-        row={selectedRowIndex !== null ? allRows[selectedRowIndex] ?? null : null}
+        row={selectedRow ? selectedRow.row : null}
         columns={orderedVisibleColumns}
-        currentIndex={selectedRowIndex ?? 0}
-        totalRows={allRows.length}
-        onClose={() => setSelectedRowIndex(null)}
-        onPrev={() => setSelectedRowIndex((i) => (i !== null && i > 0 ? i - 1 : i))}
-        onNext={() => setSelectedRowIndex((i) => (i !== null && i < allRows.length - 1 ? i + 1 : i))}
+        currentIndex={selectedRow?.index ?? 0}
+        totalRows={rowsSnapshot.length}
+        onClose={() => setSelectedRow(null)}
+        onPrev={() => setSelectedRow((prev) => {
+          if (!prev || prev.index <= 0) return prev;
+          const newIndex = prev.index - 1;
+          return { row: rowsSnapshot[newIndex], index: newIndex };
+        })}
+        onNext={() => setSelectedRow((prev) => {
+          if (!prev || prev.index >= rowsSnapshot.length - 1) return prev;
+          const newIndex = prev.index + 1;
+          return { row: rowsSnapshot[newIndex], index: newIndex };
+        })}
       />
 
       <KeyboardShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
