@@ -21,10 +21,22 @@ import { decodeFilters } from "@/utils/filterEncoding";
 import { useAuth } from "@/contexts/AuthContext";
 import { useColumnSettings } from "@/hooks/useColumnSettings";
 import { useKeyboardShortcuts } from "@/hooks/useKeyboardShortcuts";
+import { useIsMobile } from "@/hooks/use-mobile";
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from "@/components/ui/drawer";
+import { Upload, SlidersHorizontal, Files, Columns3 } from "lucide-react";
+
+type MobilePanel = "upload" | "filters" | "columns" | null;
 
 const Index = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const { isAuthenticated } = useAuth();
+  const isMobile = useIsMobile();
+  const [mobilePanel, setMobilePanel] = useState<MobilePanel>(null);
   
   const { data: colsData, refetch: refetchCols } = useQuery({
     queryKey: ["columns"],
@@ -149,99 +161,248 @@ const Index = () => {
     visible: { opacity: 1, y: 0 },
   };
 
+  const activeFilterCount = Object.keys(filters).length;
+
   return (
     <>
       <motion.main
-        className="container mx-auto py-6"
+        className={`container mx-auto py-6 ${isMobile ? "pb-20" : ""}`}
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <motion.aside className="lg:col-span-4 space-y-6" variants={itemVariants}>
-            <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
-              <UploadPanel onComplete={() => refetchCols()} />
-            </motion.div>
-            <motion.div className="glass-card liquid-scale rounded-md p-4" whileHover={{ scale: 1.005 }} transition={{ duration: 0.2 }}>
-              <div className="space-y-4">
-                <FileMultiSelect selectedFiles={selectedFiles} onSelectionChange={setSelectedFiles} />
-                <Separator />
-                <FiltersPanel
-                  columns={columns}
-                  filters={filters}
-                  selectedFiles={selectedFiles}
-                  setFilters={setFilters}
-                  onApply={apply}
-                  onClearAll={clear}
-                  refreshKey={refreshKey}
-                />
-              </div>
-            </motion.div>
-          </motion.aside>
-
-          <motion.section className="lg:col-span-8 space-y-4" variants={itemVariants}>
+        {isMobile ? (
+          /* ─── Mobile: full-width data table, no sidebar ─── */
+          <motion.div className="space-y-4" variants={itemVariants}>
             <motion.div
-              className="flex items-center justify-between"
+              className="flex items-center justify-between px-1"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.4, delay: 0.2 }}
             >
-              <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient-primary">
-                CSV Viewer Data
+              <h1 className="text-xl font-semibold tracking-tight text-gradient-primary">
+                CSV Data
               </h1>
-              <div className="flex items-center gap-3">
-                <ColumnSettings
-                  columnOrder={columnOrder}
-                  visibleColumns={visibleColumns}
-                  pinnedColumns={pinnedColumns}
-                  onToggleColumn={toggleColumn}
-                  onReorder={reorderColumns}
-                  onTogglePin={togglePin}
-                  onShowAll={showAll}
-                  onHideAll={hideAll}
-                  onReset={resetColumnSettings}
-                  open={columnSettingsOpen}
-                  onOpenChange={setColumnSettingsOpen}
+              <div className="flex items-center gap-2">
+                <DownloadCsv filters={filters} fields={columns} />
+                <BulkDeleteDialog
+                  filters={filters}
+                  onDeleted={() => {
+                    setFilters({});
+                    refetchCols();
+                    setRefreshKey((k) => k + 1);
+                  }}
                 />
-                <motion.div whileHover={{ scale: 1.05, rotate: 1 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
-                  <Button variant="destructive" asChild className="button-smooth hover-glow liquid-bounce">
-                    <Link to="/settings">🗑️ Delete All Data</Link>
-                  </Button>
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
-                  <BulkDeleteDialog
-                    filters={filters}
-                    onDeleted={() => {
-                      setFilters({});
-                      refetchCols();
-                      setRefreshKey((k) => k + 1);
-                    }}
-                  />
-                </motion.div>
-                <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
-                  <DownloadCsv filters={filters} fields={columns} />
-                </motion.div>
               </div>
             </motion.div>
+            <Separator />
+            <DataTable
+              columnsList={orderedVisibleColumns}
+              filters={filters}
+              selectedFiles={selectedFiles}
+              refreshKey={refreshKey}
+              pinnedColumns={pinnedColumns}
+              onRowClick={handleRowClick}
+              onRowsChange={handleRowsChange}
+            />
+          </motion.div>
+        ) : (
+          /* ─── Desktop: original grid layout ─── */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            <motion.aside className="lg:col-span-4 space-y-6" variants={itemVariants}>
+              <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
+                <UploadPanel onComplete={() => refetchCols()} />
+              </motion.div>
+              <motion.div className="glass-card liquid-scale rounded-md p-4" whileHover={{ scale: 1.005 }} transition={{ duration: 0.2 }}>
+                <div className="space-y-4">
+                  <FileMultiSelect selectedFiles={selectedFiles} onSelectionChange={setSelectedFiles} />
+                  <Separator />
+                  <FiltersPanel
+                    columns={columns}
+                    filters={filters}
+                    selectedFiles={selectedFiles}
+                    setFilters={setFilters}
+                    onApply={apply}
+                    onClearAll={clear}
+                    refreshKey={refreshKey}
+                  />
+                </div>
+              </motion.div>
+            </motion.aside>
 
-            <motion.div initial={{ opacity: 0, scaleX: 0 }} animate={{ opacity: 1, scaleX: 1 }} transition={{ duration: 0.3, delay: 0.3 }}>
-              <Separator />
-            </motion.div>
+            <motion.section className="lg:col-span-8 space-y-4" variants={itemVariants}>
+              <motion.div
+                className="flex items-center justify-between"
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.2 }}
+              >
+                <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-gradient-primary">
+                  CSV Viewer Data
+                </h1>
+                <div className="flex items-center gap-3">
+                  <ColumnSettings
+                    columnOrder={columnOrder}
+                    visibleColumns={visibleColumns}
+                    pinnedColumns={pinnedColumns}
+                    onToggleColumn={toggleColumn}
+                    onReorder={reorderColumns}
+                    onTogglePin={togglePin}
+                    onShowAll={showAll}
+                    onHideAll={hideAll}
+                    onReset={resetColumnSettings}
+                    open={columnSettingsOpen}
+                    onOpenChange={setColumnSettingsOpen}
+                  />
+                  <motion.div whileHover={{ scale: 1.05, rotate: 1 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
+                    <Button variant="destructive" asChild className="button-smooth hover-glow liquid-bounce">
+                      <Link to="/settings">🗑️ Delete All Data</Link>
+                    </Button>
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
+                    <BulkDeleteDialog
+                      filters={filters}
+                      onDeleted={() => {
+                        setFilters({});
+                        refetchCols();
+                        setRefreshKey((k) => k + 1);
+                      }}
+                    />
+                  </motion.div>
+                  <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
+                    <DownloadCsv filters={filters} fields={columns} />
+                  </motion.div>
+                </div>
+              </motion.div>
 
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }}>
-              <DataTable
-                columnsList={orderedVisibleColumns}
-                filters={filters}
-                selectedFiles={selectedFiles}
-                refreshKey={refreshKey}
-                pinnedColumns={pinnedColumns}
-                onRowClick={handleRowClick}
-                onRowsChange={handleRowsChange}
-              />
-            </motion.div>
-          </motion.section>
-        </div>
+              <motion.div initial={{ opacity: 0, scaleX: 0 }} animate={{ opacity: 1, scaleX: 1 }} transition={{ duration: 0.3, delay: 0.3 }}>
+                <Separator />
+              </motion.div>
+
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }}>
+                <DataTable
+                  columnsList={orderedVisibleColumns}
+                  filters={filters}
+                  selectedFiles={selectedFiles}
+                  refreshKey={refreshKey}
+                  pinnedColumns={pinnedColumns}
+                  onRowClick={handleRowClick}
+                  onRowsChange={handleRowsChange}
+                />
+              </motion.div>
+            </motion.section>
+          </div>
+        )}
       </motion.main>
+
+      {/* ─── Mobile sticky bottom bar ─── */}
+      {isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 glass-panel border-t safe-area-bottom">
+          <div className="flex items-center justify-around py-2 px-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs"
+              onClick={() => setMobilePanel("upload")}
+            >
+              <Upload className="h-4 w-4" />
+              Upload
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className={`flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs relative ${
+                activeFilterCount > 0 ? "text-primary" : ""
+              }`}
+              onClick={() => setMobilePanel("filters")}
+            >
+              <SlidersHorizontal className="h-4 w-4" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 h-4 w-4 rounded-full bg-primary text-primary-foreground text-[10px] flex items-center justify-center">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs"
+              onClick={() => setMobilePanel("columns")}
+            >
+              <Columns3 className="h-4 w-4" />
+              Columns
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs"
+              asChild
+            >
+              <Link to="/files">
+                <Files className="h-4 w-4" />
+                Files
+              </Link>
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ─── Mobile drawers ─── */}
+      <Drawer open={mobilePanel === "upload"} onOpenChange={(v) => !v && setMobilePanel(null)}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>Upload Files</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 overflow-y-auto">
+            <UploadPanel onComplete={() => { refetchCols(); setMobilePanel(null); }} />
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={mobilePanel === "filters"} onOpenChange={(v) => !v && setMobilePanel(null)}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>Filters & Files</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 overflow-y-auto space-y-4">
+            <FileMultiSelect selectedFiles={selectedFiles} onSelectionChange={setSelectedFiles} />
+            <Separator />
+            <FiltersPanel
+              columns={columns}
+              filters={filters}
+              selectedFiles={selectedFiles}
+              setFilters={setFilters}
+              onApply={() => { apply(); setMobilePanel(null); }}
+              onClearAll={clear}
+              refreshKey={refreshKey}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
+
+      <Drawer open={mobilePanel === "columns"} onOpenChange={(v) => !v && setMobilePanel(null)}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader>
+            <DrawerTitle>Column Settings</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-4 pb-6 overflow-y-auto">
+            <ColumnSettings
+              columnOrder={columnOrder}
+              visibleColumns={visibleColumns}
+              pinnedColumns={pinnedColumns}
+              onToggleColumn={toggleColumn}
+              onReorder={reorderColumns}
+              onTogglePin={togglePin}
+              onShowAll={showAll}
+              onHideAll={hideAll}
+              onReset={resetColumnSettings}
+              open={true}
+              onOpenChange={() => setMobilePanel(null)}
+            />
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       <RowDetailModal
         row={selectedRow ? selectedRow.row : null}
