@@ -1,109 +1,127 @@
 
 
-# Implementation Plan: Column Controls, Row Detail Modal, and Keyboard Shortcuts
+# Implementation Plan: File Sorting, Search, Multi-Select, and Comparison
 
 ## Overview
 
-Five features for the DataTable on the Index page -- all purely client-side, no backend changes, no theme changes.
+Four features for the Files page (`src/pages/Files.tsx`) -- all client-side, operating on the existing `filesData.files` array from `GET /files`. No backend changes, no theme changes.
 
 ## Architecture
 
-A new `ColumnSettings` component will manage visibility, order, and pinning state. State will be lifted to `Index.tsx` and passed into `DataTable`. A `RowDetailModal` dialog opens on row click. A global `useKeyboardShortcuts` hook wires hotkeys app-wide.
-
 ```text
-Index.tsx (state owner)
- ├── ColumnSettings (popover UI for toggle/reorder/pin)
- └── DataTable (consumes column config, emits row click)
-      └── RowDetailModal (dialog showing all fields for one row)
-
-App.tsx
- └── useKeyboardShortcuts (global listener)
+Files.tsx (state owner)
+ ├── FileToolbar (search input + bulk action buttons + compare button)
+ ├── Sortable TableHead columns (click to sort)
+ ├── Checkbox column for multi-select
+ ├── FileComparisonDialog (side-by-side schema diff)
+ └── existing: FileDetailsDrawer, DeleteFileDialog
 ```
 
-## Files to Create
+All filtering, sorting, and selection state lives in `Files.tsx`. A new `FileComparisonDialog` component handles the comparison view.
 
-### 1. `src/hooks/useColumnSettings.ts`
-Custom hook managing three pieces of state, persisted to `localStorage` key `crunch_column_settings`:
-- **`visibleColumns: string[]`** -- subset of `columnsList` to display (default: all)
-- **`columnOrder: string[]`** -- ordered list (default: same as `columnsList`)
-- **`pinnedColumns: string[]`** -- columns frozen to the left (default: none)
+---
 
-Exposes: `toggleColumn`, `reorderColumns`, `togglePin`, `resetAll`, `orderedVisibleColumns` (computed: ordered, filtered by visibility, pinned first).
+## Feature 1: File Sorting
 
-### 2. `src/components/table/ColumnSettings.tsx`
-A `Popover` trigger (gear icon button) placed next to the "CSV Viewer Data" heading. Contains:
-- **Visibility tab**: Checklist of all columns with toggles. "Show All" / "Hide All" buttons.
-- **Order tab**: Draggable list using `@dnd-kit/core` + `@dnd-kit/sortable` for reordering. Each item shows a grip handle and the column name.
-- **Pin tab**: Each column has a pin/unpin toggle icon. Pinned columns are shown at top with a snowflake icon.
-- Tabs implemented with the existing `src/components/ui/tabs.tsx`.
+**How it works**: Each sortable column header (`File`, `Uploaded`, `Size`, `Rows`) gets a click handler that toggles sort direction. An arrow icon indicates current sort column and direction.
 
-### 3. `src/components/table/RowDetailModal.tsx`
-A `Dialog` component that receives `row: Record<string, any> | null` and `columns: string[]`. Displays a vertical key-value list of all fields with:
-- Column name (bold label) and value (monospace text, with copy button)
-- Scrollable if many columns
-- Close on Escape (built-in from Dialog primitive)
-- Navigation: "Previous" / "Next" buttons + arrow key support to step through rows
+**State**:
+```ts
+const [sortKey, setSortKey] = useState<"filename" | "uploaded_at" | "size_bytes" | "current_row_count">("uploaded_at");
+const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+```
 
-### 4. `src/hooks/useKeyboardShortcuts.ts`
-Global `useEffect` with `keydown` listener. Shortcuts:
-| Shortcut | Action |
-|----------|--------|
-| `Ctrl/Cmd + K` | Focus a future command palette (for now, no-op placeholder) |
-| `Ctrl/Cmd + /` | Open/close keyboard shortcuts help dialog |
-| `Escape` | Close any open modal/popover |
-| `Ctrl/Cmd + Shift + C` | Toggle column settings popover |
-| `J` / `K` (when row detail open) | Navigate prev/next row |
+**Implementation**: A `sortedFiles` computed variable applies `Array.sort()` on the `files` array using `sortKey` and `sortDir`. The `TableHead` cells become clickable with `ArrowUp`/`ArrowDown` icons from lucide. Clicking the same column toggles direction; clicking a new column defaults to descending.
 
-### 5. `src/components/table/KeyboardShortcutsDialog.tsx`
-Simple `Dialog` listing all available shortcuts in a two-column table. Triggered by `Ctrl+/` or a `?` button in the header.
+**File modified**: `src/pages/Files.tsx` only.
 
-## Files to Modify
+---
 
-### 6. `src/pages/Index.tsx`
-- Import and use `useColumnSettings(columns)` hook
-- Pass `orderedVisibleColumns` and `pinnedColumns` to `DataTable`
-- Render `<ColumnSettings>` popover next to the heading
-- Track `selectedRow` state and pass to `RowDetailModal`
+## Feature 2: File Search/Filter Bar
 
-### 7. `src/components/table/DataTable.tsx`
-**Props changes**: Add `pinnedColumns?: string[]`, `onRowClick?: (row, index) => void`.
+**How it works**: A text input above the table filters the file list by filename (case-insensitive substring match). Uses `useDebounce` (already exists at `src/hooks/useDebounce.ts`) for 200ms debounce.
 
-**Column pinning**: 
-- Split columns into `pinnedCols` and `scrollableCols`
-- Render pinned columns in a fixed-width left section with `position: sticky; left: 0; z-index: 5` and a right border shadow
-- Scrollable columns render in the remaining space
+**State**:
+```ts
+const [searchQuery, setSearchQuery] = useState("");
+const debouncedSearch = useDebounce(searchQuery, 200);
+```
 
-**Row click**: Attach `onClick` to each row div calling `onRowClick(row.original, adjustedIndex)`.
+**Implementation**: An `Input` with a `Search` icon placed in a toolbar row between the stats cards and the table. `filteredFiles` filters `sortedFiles` by `file.filename.toLowerCase().includes(debouncedSearch.toLowerCase())`. The results count is shown as a subtle badge.
 
-**Grid template update**: Change from uniform `repeat(N, 220px)` to dynamically computed template accounting for pinned vs scrollable columns.
+**File modified**: `src/pages/Files.tsx` only.
 
-### 8. `src/components/layout/AppHeader.tsx`
-- Add a small `?` icon button that opens `KeyboardShortcutsDialog`
+---
 
-### 9. `src/App.tsx`
-- Mount `useKeyboardShortcuts` hook at root level
+## Feature 3: Multi-Select with Bulk Actions
 
-## Dependencies to Install
+**How it works**: A checkbox column is added to the table. A header checkbox toggles select-all (for visible/filtered files). When files are selected, a toolbar appears with bulk actions.
 
-- `@dnd-kit/core` and `@dnd-kit/sortable` -- for drag-and-drop column reordering
+**State**:
+```ts
+const [selectedFileIds, setSelectedFileIds] = useState<Set<string>>(new Set());
+```
+
+**Bulk actions available**:
+1. **Bulk Delete**: Opens the existing `DeleteFileDialog` iteratively, or a new confirmation dialog that loops through selected files calling the existing `deleteFileDryRun` + `deleteFileConfirm` APIs sequentially. Since the backend already has per-file delete, we process them one at a time with a progress indicator.
+2. **Bulk Filter**: Navigates to `/?files=id1,id2,...` to filter the dataset by all selected files.
+3. **Export Metadata CSV**: Client-side generates a CSV of the selected files' metadata (filename, file_id, uploaded_at, size_bytes, current_row_count, columns list) and triggers a download using `Blob` + `URL.createObjectURL`.
+
+**Selection behavior**:
+- Clicking a row checkbox toggles that file
+- Header checkbox: if all visible files are selected, deselects all; otherwise selects all visible
+- Selection clears when search query changes
+- Selected count shown in toolbar
+
+**Files modified**: `src/pages/Files.tsx` (checkbox column, toolbar, actions).
+
+---
+
+## Feature 4: File Comparison View
+
+**How it works**: When exactly 2 files are selected, a "Compare" button appears. Clicking it opens a dialog showing side-by-side schema comparison.
+
+**New component**: `src/components/files/FileComparisonDialog.tsx`
+
+**Comparison data** (derived from `files` array which includes `columns_map`):
+- **Header**: File A name vs File B name
+- **Stats row**: Row count, size, upload date for each
+- **Schema diff table**: Union of all column names from both files' `columns_map`. Each row shows:
+  - Column name
+  - Present in File A (checkmark or dash)
+  - Present in File B (checkmark or dash)
+  - Columns unique to one file highlighted in a subtle color (green for added, red for missing)
+
+**Props**:
+```ts
+interface FileComparisonDialogProps {
+  fileA: FilesListResponse["files"][0];
+  fileB: FilesListResponse["files"][0];
+  open: boolean;
+  onClose: () => void;
+}
+```
+
+**Files created**: `src/components/files/FileComparisonDialog.tsx`
+**Files modified**: `src/pages/Files.tsx`
+
+---
 
 ## Implementation Order
 
-1. Install `@dnd-kit` packages
-2. Create `useColumnSettings` hook
-3. Create `ColumnSettings` popover component
-4. Update `DataTable` for column pinning + row click
-5. Create `RowDetailModal`
-6. Create `useKeyboardShortcuts` + `KeyboardShortcutsDialog`
-7. Wire everything together in `Index.tsx` and `App.tsx`
+1. Add sort state and sortable column headers to `Files.tsx`
+2. Add search input with debounce to `Files.tsx`
+3. Add checkbox column and multi-select state to `Files.tsx`
+4. Add bulk action toolbar (delete, filter, export CSV)
+5. Create `FileComparisonDialog.tsx`
+6. Wire compare button to dialog when 2 files selected
 
-## Technical Details
+## Files Summary
 
-**localStorage persistence**: Column settings keyed by a hash of the column list, so different datasets get independent configs. On column list change (new upload), missing columns are appended and removed columns are pruned.
+| File | Action | Changes |
+|------|--------|---------|
+| `src/pages/Files.tsx` | Modify | Sort state, search bar, checkbox column, bulk toolbar, compare button |
+| `src/components/files/FileComparisonDialog.tsx` | Create | Side-by-side schema comparison dialog |
 
-**Pinned column rendering**: Uses CSS `position: sticky` with `left: 0` on pinned cells, with a subtle box-shadow on the right edge to indicate frozen boundary. The grid template becomes: `[pinned widths] [scrollable widths]`.
-
-**Row detail navigation**: The modal receives `currentIndex`, `totalRows`, and callbacks `onPrev`/`onNext`. Arrow keys are captured inside the modal via local `keydown` listener.
-
-**Keyboard shortcuts**: Uses `useEffect` with `document.addEventListener('keydown', ...)`. Checks `e.metaKey || e.ctrlKey` for modifier combos. Prevents default browser behavior for captured shortcuts. Only active shortcuts fire; disabled ones (like row nav when no modal) are skipped.
+No new dependencies required. Uses existing `useDebounce` hook, `Checkbox` component, `Dialog` component, and `Input` component.
 
