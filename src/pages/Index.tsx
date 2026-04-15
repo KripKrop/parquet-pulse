@@ -236,6 +236,7 @@ const Index = () => {
                 refreshKey={refreshKey}
                 pinnedColumns={pinnedColumns}
                 onRowClick={handleRowClick}
+                onRowsChange={handleRowsChange}
               />
             </motion.div>
           </motion.section>

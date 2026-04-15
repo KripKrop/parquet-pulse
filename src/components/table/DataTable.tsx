@@ -51,6 +51,11 @@ export const DataTable: React.FC<{
   }, [columnsList]);
 
   const rows = useMemo(() => data?.pages.flatMap((p) => p.rows) ?? [], [data]);
+
+  // Notify parent of row changes for row detail navigation
+  useEffect(() => {
+    onRowsChange?.(rows);
+  }, [rows, onRowsChange]);
   const total = data?.pages?.[0]?.total ?? 0;
 
   const table = useReactTable({
