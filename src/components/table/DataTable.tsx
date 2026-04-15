@@ -17,7 +17,8 @@ export const DataTable: React.FC<{
   refreshKey?: number;
   pinnedColumns?: string[];
   onRowClick?: (row: Record<string, any>, index: number) => void;
-}> = ({ columnsList, filters, selectedFiles = [], refreshKey = 0, pinnedColumns = [], onRowClick }) => {
+  onRowsChange?: (rows: Record<string, any>[]) => void;
+}> = ({ columnsList, filters, selectedFiles = [], refreshKey = 0, pinnedColumns = [], onRowClick, onRowsChange }) => {
   const limit = 200;
   const pinnedSet = useMemo(() => new Set(pinnedColumns), [pinnedColumns]);
 
