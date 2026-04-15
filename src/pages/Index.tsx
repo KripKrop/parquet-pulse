@@ -44,8 +44,8 @@ const Index = () => {
   const [datasetVersion, setDatasetVersion] = useState<string | undefined>();
   const [columnSettingsOpen, setColumnSettingsOpen] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
-  const [selectedRowIndex, setSelectedRowIndex] = useState<number | null>(null);
-  const [allRows, setAllRows] = useState<Record<string, any>[]>([]);
+  const [selectedRow, setSelectedRow] = useState<{ row: Record<string, any>; index: number } | null>(null);
+  const [rowsSnapshot, setRowsSnapshot] = useState<Record<string, any>[]>([]);
 
   const columns = colsData?.columns ?? [];
 
