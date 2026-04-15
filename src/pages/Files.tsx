@@ -28,6 +28,7 @@ import { exportToCSV } from "@/utils/csvExport";
 type SortKey = "filename" | "uploaded_at" | "size_bytes" | "current_row_count";
 
 export default function Files() {
+  const isMobile = useIsMobile();
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("uploaded_at");
