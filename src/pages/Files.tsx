@@ -5,6 +5,8 @@ import {
   File, Calendar, HardDrive, Eye, Filter, Trash2, Copy, RefreshCw, Database,
   Search, ArrowUp, ArrowDown, ArrowUpDown, Download, GitCompare, X
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { FileCard } from "@/components/files/FileCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
