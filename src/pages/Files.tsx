@@ -401,6 +401,23 @@ export default function Files() {
                   </div>
                 </div>
               </div>
+            ) : isMobile ? (
+              /* ─── Mobile card layout ─── */
+              <div className="p-3 space-y-3">
+                {processedFiles.map((file, index) => (
+                  <FileCard
+                    key={file.file_id}
+                    file={file}
+                    selected={selectedFileIds.has(file.file_id)}
+                    onToggleSelect={() => toggleFileSelection(file.file_id)}
+                    onView={() => setSelectedFileId(file.file_id)}
+                    onFilter={() => handleFilterByFile(file.file_id)}
+                    onDelete={() => setDeleteFileId(file.file_id)}
+                    onCopy={copyToClipboard}
+                    index={index}
+                  />
+                ))}
+              </div>
             ) : (
               <Table>
                 <TableHeader>
