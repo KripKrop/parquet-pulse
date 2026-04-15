@@ -5,6 +5,8 @@ import {
   File, Calendar, HardDrive, Eye, Filter, Trash2, Copy, RefreshCw, Database,
   Search, ArrowUp, ArrowDown, ArrowUpDown, Download, GitCompare, X
 } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { FileCard } from "@/components/files/FileCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +28,7 @@ import { exportToCSV } from "@/utils/csvExport";
 type SortKey = "filename" | "uploaded_at" | "size_bytes" | "current_row_count";
 
 export default function Files() {
+  const isMobile = useIsMobile();
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [deleteFileId, setDeleteFileId] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>("uploaded_at");
@@ -397,6 +400,23 @@ export default function Files() {
                     {debouncedSearch ? "Try a different search term" : "Upload your first CSV file to get started"}
                   </div>
                 </div>
+              </div>
+            ) : isMobile ? (
+              /* ─── Mobile card layout ─── */
+              <div className="p-3 space-y-3">
+                {processedFiles.map((file, index) => (
+                  <FileCard
+                    key={file.file_id}
+                    file={file}
+                    selected={selectedFileIds.has(file.file_id)}
+                    onToggleSelect={() => toggleFileSelection(file.file_id)}
+                    onView={() => setSelectedFileId(file.file_id)}
+                    onFilter={() => handleFilterByFile(file.file_id)}
+                    onDelete={() => setDeleteFileId(file.file_id)}
+                    onCopy={copyToClipboard}
+                    index={index}
+                  />
+                ))}
               </div>
             ) : (
               <Table>
