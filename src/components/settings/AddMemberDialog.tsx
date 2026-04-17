@@ -64,7 +64,12 @@ export function AddMemberDialog({ open, onOpenChange }: Props) {
       return;
     }
     try {
-      await add.mutateAsync(parsed.data);
+      await add.mutateAsync({
+        email: parsed.data.email,
+        name: parsed.data.name,
+        password: parsed.data.password,
+        role: parsed.data.role,
+      });
       handleClose(false);
     } catch (e) {
       if (e instanceof CollabApiError && e.status === 409) {
@@ -85,7 +90,7 @@ export function AddMemberDialog({ open, onOpenChange }: Props) {
       return;
     }
     try {
-      await add.mutateAsync(parsed.data);
+      await add.mutateAsync({ email: parsed.data.email, role: parsed.data.role });
       handleClose(false);
     } catch {/* surfaced by hook */}
   };
