@@ -19,7 +19,8 @@ import {
   Sparkles,
   Bookmark,
   Copy,
-  Trash2
+  Trash2,
+  Pin
 } from "lucide-react";
 import { useAI } from "@/contexts/AIContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,8 +30,10 @@ import { toast } from "@/hooks/use-toast";
 import type { AskResponse } from "@/types/api";
 import { exportToCSV } from "@/utils/csvExport";
 import { encodeFilters } from "@/utils/filterEncoding";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { ConversationItem as ConversationItemType, SavedQuery } from "@/contexts/AIContext";
+import { annotationsApi } from "@/services/annotationsApi";
+import { normalizeViewState } from "@/lib/viewStateSummary";
 
 export function ConversationWorkspace() {
   const { 
@@ -398,6 +401,43 @@ function ConversationItem({ item }: { item: ConversationItemType }) {
     });
   };
 
+  const handlePinToView = async () => {
+    if (!response.answer_id) {
+      toast({ title: "Cannot pin", description: "This answer has no answer_id", variant: "destructive" });
+      return;
+    }
+    try {
+      await annotationsApi.create({
+        answer_id: response.answer_id,
+        anchor: {
+          kind: "view",
+          route: "/",
+          view_state: normalizeViewState({ filters: response.applied_filters || {} }),
+        },
+      });
+      toast({ title: "Pinned to view", description: "Teammates landing on this filter will see this insight" });
+    } catch (e: any) {
+      toast({ title: "Pin failed", description: e?.message ?? "Try again", variant: "destructive" });
+    }
+  };
+
+  const firstRowMeta = response.rows?.[0]?._meta;
+  const handlePinToRow = async () => {
+    if (!response.answer_id || !firstRowMeta) {
+      toast({ title: "Cannot pin to row", description: "Need an answer_id and a row with _meta", variant: "destructive" });
+      return;
+    }
+    try {
+      await annotationsApi.create({
+        answer_id: response.answer_id,
+        anchor: { kind: "row", file_id: firstRowMeta.file_id, row_hash: firstRowMeta.row_hash },
+      });
+      toast({ title: "Pinned to row", description: "Teammates opening this row will see this insight" });
+    } catch (e: any) {
+      toast({ title: "Pin failed", description: e?.message ?? "Try again", variant: "destructive" });
+    }
+  };
+
   if (response.error) {
     return (
       <div className="space-y-2">
@@ -600,6 +640,19 @@ function ConversationItem({ item }: { item: ConversationItemType }) {
                 <Copy className="h-3 w-3 mr-1" />
                 Copy Query
               </Button>
+
+              {response.answer_id && (
+                <Button variant="ghost" size="sm" onClick={handlePinToView} title="Pin this answer to the current view">
+                  <Pin className="h-3 w-3 mr-1" />
+                  Pin to view
+                </Button>
+              )}
+              {response.answer_id && firstRowMeta && (
+                <Button variant="ghost" size="sm" onClick={handlePinToRow} title="Pin to the first row in this result">
+                  <Pin className="h-3 w-3 mr-1" />
+                  Pin to row
+                </Button>
+              )}
             </div>
           )}
         </div>

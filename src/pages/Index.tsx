@@ -463,6 +463,14 @@ const Index = () => {
       />
 
       <KeyboardShortcutsDialog open={helpOpen} onOpenChange={setHelpOpen} />
+
+      <CommentDrawer
+        open={!!commentTarget}
+        fileId={commentTarget?.meta.file_id ?? null}
+        rowHash={commentTarget?.meta.row_hash ?? null}
+        rowPreview={commentTarget?.row ?? null}
+        onOpenChange={(o) => { if (!o) setCommentTarget(null); }}
+      />
     </>
   );
 };
