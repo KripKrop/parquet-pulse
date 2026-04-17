@@ -11,6 +11,7 @@ import { Building2, User, Shield, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTour, resetTourLocal } from "@/contexts/TourContext";
 import { ProfileEditor } from "@/components/profile/ProfileEditor";
+import { TenantMembersCard } from "@/components/settings/TenantMembersCard";
 
 export default function Settings() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -191,6 +192,37 @@ export default function Settings() {
       )}
 
       {isAuthenticated && <div className="h-6" />}
+
+      {/* Team Members - Owners/Admins manage; others see info note */}
+      {isAuthenticated && (role === 'owner' || role === 'platform_admin' || role === 'superadmin') && (
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.3 }}
+          >
+            <TenantMembersCard />
+          </motion.div>
+          <div className="h-6" />
+        </>
+      )}
+      {isAuthenticated && role && !['owner', 'platform_admin', 'superadmin'].includes(role) && (
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25, duration: 0.3 }}
+          >
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-muted-foreground">Team Members</CardTitle>
+                <CardDescription>Members are managed by your tenant owner.</CardDescription>
+              </CardHeader>
+            </Card>
+          </motion.div>
+          <div className="h-6" />
+        </>
+      )}
 
       {/* Danger Zone - Only for Owners and Admins */}
       {isAuthenticated && (role === 'owner' || role === 'platform_admin' || role === 'superadmin') && (

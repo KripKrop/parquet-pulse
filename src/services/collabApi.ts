@@ -179,6 +179,39 @@ export const membersApi = {
   },
 };
 
+// ─── Tenant member administration (owner-only) ─────────────────────────────
+export interface TenantMemberAdmin {
+  user_id: string;
+  email: string;
+  name: string;
+  avatar_url?: string | null;
+  color?: string;
+  role: string;
+}
+
+export interface AddTenantMemberPayload {
+  email: string;
+  role: "member" | "owner";
+  password?: string;
+  name?: string;
+}
+
+export const tenantMembersApi = {
+  list: () => collabFetch<{ members: TenantMemberAdmin[] } | TenantMemberAdmin[]>(`/tenant-members`),
+  add: (payload: AddTenantMemberPayload) =>
+    collabFetch<TenantMemberAdmin>(`/tenant-members`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
+  updateRole: (userId: string, role: "member" | "owner") =>
+    collabFetch<TenantMemberAdmin>(`/tenant-members/${userId}/role`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  remove: (userId: string) =>
+    collabFetch<void>(`/tenant-members/${userId}`, { method: "DELETE" }),
+};
+
 // ─── Presence / cursor REST fallback (for SSE mode) ────────────────────────
 export const presenceApi = {
   snapshot: () => collabFetch<{ users: any[] }>("/presence"),
