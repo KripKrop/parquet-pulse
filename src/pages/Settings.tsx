@@ -100,6 +100,36 @@ export default function Settings() {
 
       <div className="h-6" />
 
+      {/* Onboarding Tour */}
+      {isAuthenticated && (
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.3 }}
+          >
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4" />
+                  Onboarding Tour
+                </CardTitle>
+                <CardDescription>
+                  Replay the guided tour of upload, filter, AI, and export features.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button onClick={handleReplayTour} variant="outline" className="hover-glow">
+                  <Sparkles className="h-4 w-4 mr-2" />
+                  Replay onboarding tour
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+          <div className="h-6" />
+        </>
+      )}
+
       {/* Account Information */}
       {isAuthenticated && (
         <motion.div
