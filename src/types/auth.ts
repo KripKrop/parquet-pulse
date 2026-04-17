@@ -4,8 +4,16 @@ export interface TokenPair {
 }
 
 export interface User {
-  id: string;
+  user_id: string;
+  /** @deprecated use user_id; kept for backwards compatibility */
+  id?: string;
   email: string;
+  name: string;
+  avatar_url: string | null;
+  /** Server-owned. Hex like "#A855F7" or HSL string. Never recompute client-side. */
+  color: string;
+  has_taken_tour?: boolean;
+  /** @deprecated alias for has_taken_tour */
   tour_completed?: boolean;
 }
 
@@ -64,9 +72,23 @@ export interface RefreshTokenResponse {
 export interface DecodedToken {
   sub: string;
   email: string;
+  name?: string;
+  avatar_url?: string | null;
+  color?: string;
+  has_taken_tour?: boolean;
   tenant_id: string;
   tenant_name: string;
   role?: string;
   exp: number;
   type: string;
+}
+
+export interface UpdateProfileRequest {
+  name?: string;
+  avatar_url?: string | null;
+}
+
+export interface MeResponse {
+  user: User;
+  tenant?: Tenant;
 }

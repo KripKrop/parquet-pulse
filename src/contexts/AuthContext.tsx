@@ -1,8 +1,9 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import * as authApi from "@/services/authApi";
 import * as tokenManager from "@/services/tokenManager";
-import type { User, Tenant, RegisterRequest } from "@/types/auth";
+import * as userApi from "@/services/userApi";
+import type { User, Tenant, RegisterRequest, UpdateProfileRequest } from "@/types/auth";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -13,9 +14,27 @@ interface AuthContextType {
   login: (email: string, password: string, tenantId?: string) => Promise<{ error?: string }>;
   register: (data: RegisterRequest) => Promise<{ error?: string }>;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  updateProfile: (payload: UpdateProfileRequest) => Promise<{ error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function normalizeUser(raw: any): User | null {
+  if (!raw) return null;
+  const id = raw.user_id ?? raw.id;
+  if (!id) return null;
+  return {
+    user_id: id,
+    id,
+    email: raw.email,
+    name: raw.name ?? raw.email?.split("@")[0] ?? "User",
+    avatar_url: raw.avatar_url ?? null,
+    color: raw.color ?? "",
+    has_taken_tour: raw.has_taken_tour ?? raw.tour_completed,
+    tour_completed: raw.has_taken_tour ?? raw.tour_completed,
+  };
+}
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
@@ -27,9 +46,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const isAuthenticated = !!user && !!tenant;
 
+  const refreshProfile = useCallback(async () => {
+    try {
+      const me = await userApi.getMe();
+      const u = normalizeUser(me.user);
+      if (u) setUser(u);
+      if (me.tenant) setTenant(me.tenant);
+    } catch (err) {
+      console.warn("Failed to refresh profile:", err);
+    }
+  }, []);
+
   // Initialize from stored tokens
   useEffect(() => {
-    const initAuth = () => {
+    const initAuth = async () => {
       const accessToken = tokenManager.getAccessToken();
       
       if (accessToken && !tokenManager.isAccessTokenExpired()) {
@@ -41,6 +71,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           setUser(userData);
           setTenant(tenantData);
           setRole(roleData);
+          // Hydrate richer profile (name/avatar/color) async; non-blocking
+          userApi.getMe().then((me) => {
+            const u = normalizeUser(me.user);
+            if (u) setUser(u);
+            if (me.tenant) setTenant(me.tenant);
+          }).catch(() => { /* ignore */ });
         }
       }
       
@@ -67,7 +103,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
             const roleData = tokenManager.getRoleFromToken();
             
             if (userData && tenantData) {
-              setUser(userData);
+              setUser((prev) => prev ? { ...prev, ...userData, name: prev.name, avatar_url: prev.avatar_url, color: prev.color || userData.color } : userData);
               setTenant(tenantData);
               setRole(roleData);
             }
@@ -96,17 +132,12 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const login = async (email: string, password: string, tenantId?: string) => {
     try {
-      const response = await authApi.login({ 
-        email, 
-        password, 
-        tenant_id: tenantId 
-      });
-      
+      const response = await authApi.login({ email, password, tenant_id: tenantId });
       tokenManager.setTokens(response.access_token, response.refresh_token);
-      setUser(response.user);
+      const u = normalizeUser(response.user) ?? tokenManager.getUserFromToken();
+      if (u) setUser(u);
       setTenant(response.tenant);
       setRole(tokenManager.getRoleFromToken());
-      
       return {};
     } catch (error: any) {
       return { error: error.message || "Login failed" };
@@ -116,12 +147,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const register = async (data: RegisterRequest) => {
     try {
       const response = await authApi.register(data);
-      
       tokenManager.setTokens(response.access_token, response.refresh_token);
-      setUser(response.user);
+      const u = normalizeUser(response.user) ?? tokenManager.getUserFromToken();
+      if (u) setUser(u);
       setTenant(response.tenant);
       setRole(tokenManager.getRoleFromToken());
-      
       return {};
     } catch (error: any) {
       return { error: error.message || "Registration failed" };
@@ -136,6 +166,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     navigate("/login", { replace: true });
   };
 
+  const updateProfile = async (payload: UpdateProfileRequest): Promise<{ error?: string }> => {
+    try {
+      const res = await userApi.updateProfile(payload);
+      const u = normalizeUser(res.user);
+      if (u) setUser(u);
+      return {};
+    } catch (err: any) {
+      return { error: err.message || "Profile update failed" };
+    }
+  };
+
   return (
     <AuthContext.Provider value={{ 
       isAuthenticated, 
@@ -145,7 +186,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       login, 
       register,
       logout, 
-      loading 
+      loading,
+      refreshProfile,
+      updateProfile,
     }}>
       {children}
     </AuthContext.Provider>

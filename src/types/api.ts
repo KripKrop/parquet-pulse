@@ -55,9 +55,24 @@ export type QueryBody = {
   limit?: number;
   offset?: number;
   source_files?: string[] | null;
+  /** Ask backend to attach _meta (row_hash, file_id, comment_count, annotation_count) per row. */
+  include_row_meta?: boolean;
 };
 
-export type QueryResponse = { rows: Record<string, any>[]; total: number };
+/**
+ * Per-row collaboration metadata returned when include_row_meta=true.
+ * `row_hash` is ALWAYS a string on the frontend — never coerce to Number.
+ */
+export type RowMeta = {
+  row_hash: string;
+  file_id: string;
+  comment_count: number;
+  annotation_count: number;
+};
+
+export type RowWithMeta = Record<string, any> & { _meta?: RowMeta };
+
+export type QueryResponse = { rows: RowWithMeta[]; total: number };
 
 // Files API Types
 export type FilesListResponse = {
@@ -198,18 +213,21 @@ export type AskRequest = {
   max_rows?: number;
   source_files?: string[];
   count_only?: boolean;
+  include_row_meta?: boolean;
 };
 
 export type AskResponse = {
   intent: "describe" | "data";
   mode?: "count" | "rows";
   text?: string;
-  rows?: Record<string, any>[];
+  rows?: RowWithMeta[];
   total?: number;
   applied_filters?: Record<string, string[]>;
   used_fields?: string[];
   applied_limit?: number;
   planner_text?: string;
   context: RAGSearchHit[];
+  /** Identifier for this answer; used when pinning via /annotations. */
+  answer_id?: string;
   error?: string;
 };

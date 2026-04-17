@@ -11,12 +11,14 @@ import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import AI from "./pages/AI";
+import Activity from "./pages/Activity";
 import AppHeader from "./components/layout/AppHeader";
 import { UploadProvider } from "./contexts/UploadContext";
 import { DownloadProvider } from "./contexts/DownloadContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AIProvider } from "./contexts/AIContext";
 import { TourProvider } from "./contexts/TourContext";
+import { CollabProvider } from "./contexts/CollabProvider";
 import { OnboardingTour } from "./components/onboarding/OnboardingTour";
 import { TourAutoStart } from "./components/onboarding/TourAutoStart";
 import { FloatingUploadWidget } from "./components/upload/FloatingUploadWidget";
@@ -32,6 +34,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <CollabProvider>
             <AIProvider>
               <TourProvider>
               <UploadProvider>
@@ -50,6 +53,7 @@ const App = () => (
                         <Route path="/ai" element={<AI />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/settings" element={<Settings />} />
+                        <Route path="/activity" element={<Activity />} />
                         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                         <Route path="*" element={<NotFound />} />
                       </Routes>
@@ -63,6 +67,7 @@ const App = () => (
               </UploadProvider>
               </TourProvider>
             </AIProvider>
+            </CollabProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
