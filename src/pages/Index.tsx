@@ -29,6 +29,11 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { Upload, SlidersHorizontal, Files, Columns3 } from "lucide-react";
+import { CommentDrawer } from "@/components/collab/CommentDrawer";
+import { PinnedAIInsight } from "@/components/collab/PinnedAIInsight";
+import { useAnnotationsForView } from "@/hooks/useAnnotations";
+import { useViewStateBroadcast } from "@/hooks/useViewStateBroadcast";
+import type { RowMeta } from "@/types/api";
 
 type MobilePanel = "upload" | "filters" | "columns" | null;
 
@@ -58,6 +63,11 @@ const Index = () => {
   const [helpOpen, setHelpOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<{ row: Record<string, any>; index: number } | null>(null);
   const [rowsSnapshot, setRowsSnapshot] = useState<Record<string, any>[]>([]);
+  const [commentTarget, setCommentTarget] = useState<{ meta: RowMeta; row?: Record<string, any> } | null>(null);
+
+  // Broadcast presence view_state on filter / file selection changes
+  useViewStateBroadcast({ route: "/", filters, source_files: selectedFiles });
+  const { data: viewAnnotations = [] } = useAnnotationsForView("/", { filters, source_files: selectedFiles });
 
   const columns = colsData?.columns ?? [];
 
@@ -216,6 +226,7 @@ const Index = () => {
               pinnedColumns={pinnedColumns}
               onRowClick={handleRowClick}
               onRowsChange={handleRowsChange}
+              onOpenComments={(meta) => setCommentTarget({ meta, row: rowsSnapshot.find((r: any) => r._meta?.row_hash === meta.row_hash) })}
             />
           </motion.div>
         ) : (
@@ -297,7 +308,14 @@ const Index = () => {
                 <Separator />
               </motion.div>
 
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }}>
+              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.4 }} className="space-y-3">
+                {viewAnnotations.length > 0 && (
+                  <div className="space-y-2">
+                    {viewAnnotations.map((a) => (
+                      <PinnedAIInsight key={a.id} annotation={a} />
+                    ))}
+                  </div>
+                )}
                 <DataTable
                   columnsList={orderedVisibleColumns}
                   filters={filters}
@@ -306,6 +324,7 @@ const Index = () => {
                   pinnedColumns={pinnedColumns}
                   onRowClick={handleRowClick}
                   onRowsChange={handleRowsChange}
+                  onOpenComments={(meta) => setCommentTarget({ meta, row: rowsSnapshot.find((r: any) => r._meta?.row_hash === meta.row_hash) })}
                 />
               </motion.div>
             </motion.section>
