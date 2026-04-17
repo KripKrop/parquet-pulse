@@ -10,6 +10,7 @@ import { request } from "@/services/apiClient";
 import { Building2, User, Shield, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
 import { useTour, resetTourLocal } from "@/contexts/TourContext";
+import { ProfileEditor } from "@/components/profile/ProfileEditor";
 
 export default function Settings() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
@@ -99,6 +100,20 @@ export default function Settings() {
       </motion.div>
 
       <div className="h-6" />
+
+      {/* Display Profile (name + avatar) */}
+      {isAuthenticated && (
+        <>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.12, duration: 0.3 }}
+          >
+            <ProfileEditor />
+          </motion.div>
+          <div className="h-6" />
+        </>
+      )}
 
       {/* Onboarding Tour */}
       {isAuthenticated && (
