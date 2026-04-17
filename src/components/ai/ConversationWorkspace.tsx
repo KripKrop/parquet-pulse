@@ -640,6 +640,19 @@ function ConversationItem({ item }: { item: ConversationItemType }) {
                 <Copy className="h-3 w-3 mr-1" />
                 Copy Query
               </Button>
+
+              {response.answer_id && (
+                <Button variant="ghost" size="sm" onClick={handlePinToView} title="Pin this answer to the current view">
+                  <Pin className="h-3 w-3 mr-1" />
+                  Pin to view
+                </Button>
+              )}
+              {response.answer_id && firstRowMeta && (
+                <Button variant="ghost" size="sm" onClick={handlePinToRow} title="Pin to the first row in this result">
+                  <Pin className="h-3 w-3 mr-1" />
+                  Pin to row
+                </Button>
+              )}
             </div>
           )}
         </div>
