@@ -3,12 +3,16 @@ import { ColumnDef, getCoreRowModel, useReactTable, flexRender } from "@tanstack
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { request } from "@/services/apiClient";
-import type { QueryBody, QueryResponse } from "@/types/api";
+import type { QueryBody, QueryResponse, RowMeta, RowWithMeta } from "@/types/api";
 import { LoadingSpinner } from "@/components/ui/loading-spinner";
 import { AnimatedCounter } from "@/components/ui/animated-counter";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { TableRowSkeleton } from "./TableRowSkeleton";
 import { useSmartPrefetch } from "@/hooks/useSmartPrefetch";
+import { GhostCursors } from "@/components/collab/GhostCursors";
+import { RowCommentBadge } from "@/components/collab/RowCommentBadge";
+import { RowAnnotationBadge } from "@/components/collab/RowAnnotationBadge";
+import { useCursorBroadcast } from "@/hooks/useCursorBroadcast";
 
 export const DataTable: React.FC<{
   columnsList: string[];
@@ -18,19 +22,26 @@ export const DataTable: React.FC<{
   pinnedColumns?: string[];
   onRowClick?: (row: Record<string, any>, index: number) => void;
   onRowsChange?: (rows: Record<string, any>[]) => void;
-}> = ({ columnsList, filters, selectedFiles = [], refreshKey = 0, pinnedColumns = [], onRowClick, onRowsChange }) => {
+  onOpenComments?: (meta: RowMeta) => void;
+}> = ({ columnsList, filters, selectedFiles = [], refreshKey = 0, pinnedColumns = [], onRowClick, onRowsChange, onOpenComments }) => {
   const limit = 200;
   const pinnedSet = useMemo(() => new Set(pinnedColumns), [pinnedColumns]);
 
   const queryFn = async ({ pageParam = 0 }): Promise<QueryResponse> => {
-    const body: QueryBody = { filters, limit, offset: pageParam, source_files: selectedFiles };
+    const body: QueryBody = {
+      filters,
+      limit,
+      offset: pageParam,
+      source_files: selectedFiles,
+      include_row_meta: true,
+    };
     return request<QueryResponse>("/query", {
       method: "POST",
       body: JSON.stringify(body),
     });
   };
 
-  const { data, fetchNextPage, hasNextPage, isFetching, refetch, isLoading } = useInfiniteQuery({
+  const { data, fetchNextPage, hasNextPage, isFetching, isLoading } = useInfiniteQuery({
     queryKey: ["query", filters, selectedFiles, refreshKey],
     queryFn,
     initialPageParam: 0,
@@ -42,20 +53,45 @@ export const DataTable: React.FC<{
     gcTime: 300000,
   });
 
-  const columns = useMemo<ColumnDef<Record<string, any>>[]>(() => {
-    return columnsList.map((key) => ({
+  const hasMeta = useMemo(() => {
+    const first = data?.pages?.[0]?.rows?.[0] as RowWithMeta | undefined;
+    return !!first?._meta;
+  }, [data]);
+
+  const columns = useMemo<ColumnDef<RowWithMeta>[]>(() => {
+    const cols: ColumnDef<RowWithMeta>[] = columnsList.map((key) => ({
       id: key,
       header: key,
       cell: ({ row }) => String(row.original[key] ?? ""),
     }));
-  }, [columnsList]);
+    if (hasMeta) {
+      cols.unshift({
+        id: "__collab",
+        header: "",
+        cell: ({ row }) => {
+          const meta = (row.original as RowWithMeta)._meta;
+          if (!meta) return null;
+          return (
+            <div className="flex items-center gap-1">
+              <RowCommentBadge
+                count={meta.comment_count}
+                onClick={() => onOpenComments?.(meta)}
+              />
+              <RowAnnotationBadge
+                count={meta.annotation_count}
+                onClick={() => onOpenComments?.(meta)}
+              />
+            </div>
+          );
+        },
+      });
+    }
+    return cols;
+  }, [columnsList, hasMeta, onOpenComments]);
 
   const rows = useMemo(() => data?.pages.flatMap((p) => p.rows) ?? [], [data]);
 
-  // Notify parent of row changes for row detail navigation
-  useEffect(() => {
-    onRowsChange?.(rows);
-  }, [rows, onRowsChange]);
+  useEffect(() => { onRowsChange?.(rows); }, [rows, onRowsChange]);
   const total = data?.pages?.[0]?.total ?? 0;
 
   const table = useReactTable({
@@ -65,6 +101,15 @@ export const DataTable: React.FC<{
   });
 
   const parentRef = useRef<HTMLDivElement>(null);
+
+  // Live cursor broadcasting (table-scoped)
+  useCursorBroadcast(parentRef, (target) => {
+    if (target instanceof HTMLElement) {
+      const rowEl = target.closest<HTMLElement>("[data-row-hash]");
+      if (rowEl) return `row:${rowEl.dataset.rowHash}`;
+    }
+    return undefined;
+  });
 
   const { handleScroll } = useSmartPrefetch({
     fetchNextPage,
@@ -94,7 +139,7 @@ export const DataTable: React.FC<{
   const pinnedWidths = useMemo(() => {
     const COL_WIDTH = 220;
     const widths: Record<string, number> = {};
-    let left = 0;
+    let left = hasMeta ? 80 : 0; // reserve collab column
     for (const col of columnsList) {
       if (pinnedSet.has(col)) {
         widths[col] = left;
@@ -102,11 +147,13 @@ export const DataTable: React.FC<{
       }
     }
     return widths;
-  }, [columnsList, pinnedSet]);
+  }, [columnsList, pinnedSet, hasMeta]);
 
   const gridTemplate = useMemo(() => {
-    return `repeat(${columnsList.length}, 220px)`;
-  }, [columnsList.length]);
+    return hasMeta
+      ? `80px repeat(${columnsList.length}, 220px)`
+      : `repeat(${columnsList.length}, 220px)`;
+  }, [columnsList.length, hasMeta]);
 
   useEffect(() => {
     parentRef.current?.scrollTo({ top: 0 });
@@ -132,26 +179,24 @@ export const DataTable: React.FC<{
 
   const renderCell = (colId: string, content: React.ReactNode, title: string, key: string, cellIndex: number) => {
     const isPinned = pinnedSet.has(colId);
+    const isCollab = colId === "__collab";
     return (
       <motion.div
         key={key}
         className={`px-4 py-3 h-12 text-sm border-b whitespace-nowrap overflow-hidden text-ellipsis transition-all duration-200 hover:bg-accent/30 hover:backdrop-blur-sm liquid-bounce hover:shadow-sm group cursor-pointer ${
-          isPinned ? "bg-background/95 backdrop-blur-sm" : ""
+          isPinned || isCollab ? "bg-background/95 backdrop-blur-sm" : ""
         }`}
         style={
           isPinned
-            ? { position: "sticky", left: pinnedWidths[colId], zIndex: 5, boxShadow: pinnedWidths[colId] !== undefined && !pinnedSet.has(columnsList[columnsList.indexOf(colId) + 1]) ? "2px 0 8px -2px hsl(var(--border) / 0.5)" : undefined }
-            : undefined
+            ? { position: "sticky", left: pinnedWidths[colId], zIndex: 5 }
+            : isCollab
+              ? { position: "sticky", left: 0, zIndex: 6 }
+              : undefined
         }
         title={title}
         initial={{ opacity: 0, x: -5 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ duration: 0.2, delay: cellIndex * 0.01, ease: "easeOut" }}
-        whileHover={{
-          scale: 1.005,
-          backgroundColor: "hsl(var(--accent) / 0.4)",
-          boxShadow: "0 2px 8px -2px hsl(var(--primary) / 0.1)",
-        }}
       >
         <motion.span
           className="group-hover:text-foreground transition-colors duration-150"
@@ -167,12 +212,13 @@ export const DataTable: React.FC<{
 
   return (
     <motion.div
-      className="glass-table liquid-scale overflow-hidden rounded-xl border-0 shadow-2xl"
+      className="glass-table liquid-scale overflow-hidden rounded-xl border-0 shadow-2xl relative"
       initial={{ opacity: 0, scale: 0.98, y: 20 }}
       animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={{ duration: 0.4, ease: "easeOut" }}
     >
-      <div ref={parentRef} className="max-h-[70vh] overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent">
+      <div ref={parentRef} className="max-h-[70vh] overflow-auto scrollbar-thin scrollbar-thumb-primary/20 scrollbar-track-transparent relative">
+        <GhostCursors />
         <div className="sticky top-0 z-10 glass-panel border-b backdrop-blur-xl bg-background/80">
           <div className="grid min-w-full w-max" style={{ gridTemplateColumns: gridTemplate }}>
             {table.getHeaderGroups().map((hg, groupIndex) => (
@@ -185,22 +231,24 @@ export const DataTable: React.FC<{
               >
                 {hg.headers.map((h, headerIndex) => {
                   const isPinned = pinnedSet.has(h.id);
+                  const isCollab = h.id === "__collab";
                   return (
                     <motion.div
                       key={h.id}
                       className={`px-4 py-3 h-12 text-sm font-semibold whitespace-nowrap overflow-hidden text-ellipsis text-gradient-primary hover:bg-accent/20 transition-all duration-200 ${
-                        isPinned ? "bg-background/95 backdrop-blur-sm" : ""
+                        isPinned || isCollab ? "bg-background/95 backdrop-blur-sm" : ""
                       }`}
                       style={
                         isPinned
                           ? { position: "sticky", left: pinnedWidths[h.id], zIndex: 15 }
-                          : undefined
+                          : isCollab
+                            ? { position: "sticky", left: 0, zIndex: 16 }
+                            : undefined
                       }
                       title={String(h.column.columnDef.header as any)}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.2, delay: headerIndex * 0.02 }}
-                      whileHover={{ scale: 1.02 }}
                     >
                       {h.isPlaceholder ? null : flexRender(h.column.columnDef.header, h.getContext())}
                     </motion.div>
@@ -241,7 +289,7 @@ export const DataTable: React.FC<{
 
           {virtualItems.map((vi) => {
             if (isLoading && vi.index < 8) {
-              return <TableRowSkeleton key={`skeleton-${vi.index}`} columnCount={columnsList.length} index={vi.index} />;
+              return <TableRowSkeleton key={`skeleton-${vi.index}`} columnCount={columnsList.length + (hasMeta ? 1 : 0)} index={vi.index} />;
             }
 
             const adjustedIndex = isLoading ? vi.index - 8 : vi.index;
@@ -264,11 +312,13 @@ export const DataTable: React.FC<{
 
             const row = table.getRowModel().rows[adjustedIndex];
             if (!row) return null;
+            const meta = (row.original as RowWithMeta)._meta;
 
             return (
               <motion.div
                 key={row.id}
-                className="contents"
+                className="contents group"
+                {...(meta?.row_hash ? { "data-row-hash": meta.row_hash } : {})}
                 onClick={() => onRowClick?.(row.original, adjustedIndex)}
                 initial={{ opacity: 0, y: 8, scale: 0.98 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
