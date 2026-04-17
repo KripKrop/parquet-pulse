@@ -19,7 +19,8 @@ import {
   Sparkles,
   Bookmark,
   Copy,
-  Trash2
+  Trash2,
+  Pin
 } from "lucide-react";
 import { useAI } from "@/contexts/AIContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -29,8 +30,10 @@ import { toast } from "@/hooks/use-toast";
 import type { AskResponse } from "@/types/api";
 import { exportToCSV } from "@/utils/csvExport";
 import { encodeFilters } from "@/utils/filterEncoding";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import type { ConversationItem as ConversationItemType, SavedQuery } from "@/contexts/AIContext";
+import { annotationsApi } from "@/services/annotationsApi";
+import { normalizeViewState } from "@/lib/viewStateSummary";
 
 export function ConversationWorkspace() {
   const { 
