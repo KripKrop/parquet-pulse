@@ -23,6 +23,8 @@ import { OnboardingTour } from "./components/onboarding/OnboardingTour";
 import { TourAutoStart } from "./components/onboarding/TourAutoStart";
 import { FloatingUploadWidget } from "./components/upload/FloatingUploadWidget";
 import { FloatingDownloadWidgets } from "./components/download/FloatingDownloadWidgets";
+import { CollabStatusBanner } from "./components/collab/CollabStatusBanner";
+import { ProfileCompletionGate } from "./components/profile/ProfileCompletionGate";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +48,7 @@ const App = () => (
                     className="min-h-screen"
                   >
                     <AppHeader />
+                    <CollabStatusBanner />
                     <AnimatePresence mode="wait">
                       <Routes>
                         <Route path="/" element={<Index />} />
@@ -62,6 +65,7 @@ const App = () => (
                     <FloatingDownloadWidgets />
                     <OnboardingTour />
                     <TourAutoStart />
+                    <ProfileCompletionGate />
                   </motion.div>
                 </DownloadProvider>
               </UploadProvider>
