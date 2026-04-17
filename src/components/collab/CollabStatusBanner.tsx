@@ -32,8 +32,8 @@ export function CollabStatusBanner() {
           className="sticky top-0 z-40 w-full"
         >
           <div className="container mx-auto px-4 py-2">
-            <div className="glass-panel border border-amber-500/30 rounded-md px-3 py-2 flex items-center gap-2 text-xs">
-              <AlertTriangle className="h-4 w-4 text-amber-500 shrink-0" />
+            <div className="glass-panel border border-destructive/30 rounded-md px-3 py-2 flex items-center gap-2 text-xs">
+              <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
               <span className="flex-1">
                 {transport === "polling"
                   ? "Live collaboration is degraded — using polling. Cursors are disabled."
