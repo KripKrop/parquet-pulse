@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom";
-import { Settings2, Database, Files, Building2, Sparkles, CheckCircle2, AlertCircle, Menu } from "lucide-react";
+import { Settings2, Database, Files, Building2, Sparkles, CheckCircle2, AlertCircle, Menu, Activity } from "lucide-react";
+import { PresenceAvatars } from "@/components/collab/PresenceAvatars";
+import { NotificationBell } from "@/components/collab/NotificationBell";
+import { AvatarChip } from "@/components/profile/AvatarChip";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,6 +28,7 @@ const navItems = [
   { to: "/", icon: Database, label: "Data" },
   { to: "/files", icon: Files, label: "Files" },
   { to: "/ai", icon: Sparkles, label: "AI" },
+  { to: "/activity", icon: Activity, label: "Activity" },
   { to: "/settings", icon: Settings2, label: "Settings" },
 ];
 
@@ -216,13 +220,23 @@ const AppHeader = () => {
           </div>
 
           {isAuthenticated && (
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-3 text-sm">
               <AIStatusBadge />
+              <PresenceAvatars />
+              <NotificationBell />
               <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50">
                 <Building2 className="h-4 w-4 text-muted-foreground" />
                 <span className="text-sm font-medium">{tenant?.name}</span>
               </div>
-              <span className="text-muted-foreground">{user?.email}</span>
+              {user && (
+                <AvatarChip
+                  name={user.name}
+                  email={user.email}
+                  avatarUrl={user.avatar_url}
+                  color={user.color}
+                  size="sm"
+                />
+              )}
               <Button onClick={logout} variant="outline" size="sm" className="text-xs h-8">
                 Logout
               </Button>

@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import Settings from "./pages/Settings";
 import Login from "./pages/Login";
 import AI from "./pages/AI";
+import Activity from "./pages/Activity";
 import AppHeader from "./components/layout/AppHeader";
 import { UploadProvider } from "./contexts/UploadContext";
 import { DownloadProvider } from "./contexts/DownloadContext";
@@ -52,6 +53,7 @@ const App = () => (
                         <Route path="/ai" element={<AI />} />
                         <Route path="/login" element={<Login />} />
                         <Route path="/settings" element={<Settings />} />
+                        <Route path="/activity" element={<Activity />} />
                         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                         <Route path="*" element={<NotFound />} />
                       </Routes>
