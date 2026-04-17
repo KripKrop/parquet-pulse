@@ -320,6 +320,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
+              data-tour="mobile-upload"
               className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs"
               onClick={() => setMobilePanel("upload")}
             >
@@ -329,6 +330,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
+              data-tour="mobile-filters"
               className={`flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs relative ${
                 activeFilterCount > 0 ? "text-primary" : ""
               }`}
@@ -345,6 +347,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
+              data-tour="mobile-columns"
               className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs"
               onClick={() => setMobilePanel("columns")}
             >
