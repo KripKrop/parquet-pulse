@@ -105,6 +105,16 @@ const Index = () => {
     }
   }, []);
 
+  // Allow the onboarding tour to drive mobile drawers
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as MobilePanel;
+      setMobilePanel(detail ?? null);
+    };
+    window.addEventListener("crunch:tour-mobile-panel", handler);
+    return () => window.removeEventListener("crunch:tour-mobile-panel", handler);
+  }, []);
+
   useEffect(() => {
     if (selectedFiles.length > 0) {
       setSearchParams(prev => {
@@ -184,7 +194,9 @@ const Index = () => {
                 CSV Data
               </h1>
               <div className="flex items-center gap-2">
-                <DownloadCsv filters={filters} fields={columns} />
+                <span data-tour="export">
+                  <DownloadCsv filters={filters} fields={columns} />
+                </span>
                 <BulkDeleteDialog
                   filters={filters}
                   onDeleted={() => {
@@ -210,22 +222,26 @@ const Index = () => {
           /* ─── Desktop: original grid layout ─── */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <motion.aside className="lg:col-span-4 space-y-6" variants={itemVariants}>
-              <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
+              <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }} data-tour="upload">
                 <UploadPanel onComplete={() => refetchCols()} />
               </motion.div>
               <motion.div className="glass-card liquid-scale rounded-md p-4" whileHover={{ scale: 1.005 }} transition={{ duration: 0.2 }}>
                 <div className="space-y-4">
-                  <FileMultiSelect selectedFiles={selectedFiles} onSelectionChange={setSelectedFiles} />
+                  <div data-tour="file-select">
+                    <FileMultiSelect selectedFiles={selectedFiles} onSelectionChange={setSelectedFiles} />
+                  </div>
                   <Separator />
-                  <FiltersPanel
-                    columns={columns}
-                    filters={filters}
-                    selectedFiles={selectedFiles}
-                    setFilters={setFilters}
-                    onApply={apply}
-                    onClearAll={clear}
-                    refreshKey={refreshKey}
-                  />
+                  <div data-tour="filters">
+                    <FiltersPanel
+                      columns={columns}
+                      filters={filters}
+                      selectedFiles={selectedFiles}
+                      setFilters={setFilters}
+                      onApply={apply}
+                      onClearAll={clear}
+                      refreshKey={refreshKey}
+                    />
+                  </div>
                 </div>
               </motion.div>
             </motion.aside>
@@ -241,19 +257,21 @@ const Index = () => {
                   CSV Viewer Data
                 </h1>
                 <div className="flex items-center gap-3">
-                  <ColumnSettings
-                    columnOrder={columnOrder}
-                    visibleColumns={visibleColumns}
-                    pinnedColumns={pinnedColumns}
-                    onToggleColumn={toggleColumn}
-                    onReorder={reorderColumns}
-                    onTogglePin={togglePin}
-                    onShowAll={showAll}
-                    onHideAll={hideAll}
-                    onReset={resetColumnSettings}
-                    open={columnSettingsOpen}
-                    onOpenChange={setColumnSettingsOpen}
-                  />
+                  <div data-tour="columns">
+                    <ColumnSettings
+                      columnOrder={columnOrder}
+                      visibleColumns={visibleColumns}
+                      pinnedColumns={pinnedColumns}
+                      onToggleColumn={toggleColumn}
+                      onReorder={reorderColumns}
+                      onTogglePin={togglePin}
+                      onShowAll={showAll}
+                      onHideAll={hideAll}
+                      onReset={resetColumnSettings}
+                      open={columnSettingsOpen}
+                      onOpenChange={setColumnSettingsOpen}
+                    />
+                  </div>
                   <motion.div whileHover={{ scale: 1.05, rotate: 1 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
                     <Button variant="destructive" asChild className="button-smooth hover-glow liquid-bounce">
                       <Link to="/settings">🗑️ Delete All Data</Link>
@@ -269,7 +287,7 @@ const Index = () => {
                       }}
                     />
                   </motion.div>
-                  <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }}>
+                  <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }} transition={{ duration: 0.2 }} data-tour="export">
                     <DownloadCsv filters={filters} fields={columns} />
                   </motion.div>
                 </div>
@@ -302,6 +320,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
+              data-tour="mobile-upload"
               className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs"
               onClick={() => setMobilePanel("upload")}
             >
@@ -311,6 +330,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
+              data-tour="mobile-filters"
               className={`flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs relative ${
                 activeFilterCount > 0 ? "text-primary" : ""
               }`}
@@ -327,6 +347,7 @@ const Index = () => {
             <Button
               variant="ghost"
               size="sm"
+              data-tour="mobile-columns"
               className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3 text-xs"
               onClick={() => setMobilePanel("columns")}
             >

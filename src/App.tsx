@@ -16,6 +16,9 @@ import { UploadProvider } from "./contexts/UploadContext";
 import { DownloadProvider } from "./contexts/DownloadContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AIProvider } from "./contexts/AIContext";
+import { TourProvider } from "./contexts/TourContext";
+import { OnboardingTour } from "./components/onboarding/OnboardingTour";
+import { TourAutoStart } from "./components/onboarding/TourAutoStart";
 import { FloatingUploadWidget } from "./components/upload/FloatingUploadWidget";
 import { FloatingDownloadWidgets } from "./components/download/FloatingDownloadWidgets";
 
@@ -30,6 +33,7 @@ const App = () => (
         <BrowserRouter>
           <AuthProvider>
             <AIProvider>
+              <TourProvider>
               <UploadProvider>
                 <DownloadProvider>
                   <motion.div
@@ -52,9 +56,12 @@ const App = () => (
                     </AnimatePresence>
                     <FloatingUploadWidget />
                     <FloatingDownloadWidgets />
+                    <OnboardingTour />
+                    <TourAutoStart />
                   </motion.div>
                 </DownloadProvider>
               </UploadProvider>
+              </TourProvider>
             </AIProvider>
           </AuthProvider>
         </BrowserRouter>

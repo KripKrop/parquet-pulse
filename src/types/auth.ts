@@ -6,6 +6,7 @@ export interface TokenPair {
 export interface User {
   id: string;
   email: string;
+  tour_completed?: boolean;
 }
 
 export interface Tenant {
