@@ -17,6 +17,7 @@ import { DownloadProvider } from "./contexts/DownloadContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { AIProvider } from "./contexts/AIContext";
 import { TourProvider } from "./contexts/TourContext";
+import { CollabProvider } from "./contexts/CollabProvider";
 import { OnboardingTour } from "./components/onboarding/OnboardingTour";
 import { TourAutoStart } from "./components/onboarding/TourAutoStart";
 import { FloatingUploadWidget } from "./components/upload/FloatingUploadWidget";
@@ -32,6 +33,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <CollabProvider>
             <AIProvider>
               <TourProvider>
               <UploadProvider>
@@ -63,6 +65,7 @@ const App = () => (
               </UploadProvider>
               </TourProvider>
             </AIProvider>
+            </CollabProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
