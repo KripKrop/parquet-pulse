@@ -144,6 +144,7 @@ const AppHeader = () => {
                   key={to}
                   to={to}
                   onClick={() => setMobileMenuOpen(false)}
+                  data-tour={to === "/files" ? "files-nav" : to === "/ai" ? "ai" : undefined}
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm transition-colors ${
                       isActive
@@ -199,6 +200,7 @@ const AppHeader = () => {
               <motion.div key={to} whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <NavLink
                   to={to}
+                  data-tour={to === "/files" ? "files-nav" : to === "/ai" ? "ai" : undefined}
                   className={({ isActive }) =>
                     `inline-flex items-center gap-2 px-3 py-1.5 rounded-md glass-button transition-all duration-200 hover:glass-button-hover ${
                       isActive ? "glass-button-active" : ""
