@@ -78,7 +78,7 @@ export function AvatarChip({
           className={cn(
             "absolute rounded-full ring-2 ring-background",
             sz.dot,
-            online ? "bg-emerald-500" : "bg-muted-foreground/40"
+            online ? "bg-primary" : "bg-muted-foreground/40"
           )}
           aria-hidden
         />
