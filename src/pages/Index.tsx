@@ -105,6 +105,16 @@ const Index = () => {
     }
   }, []);
 
+  // Allow the onboarding tour to drive mobile drawers
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as MobilePanel;
+      setMobilePanel(detail ?? null);
+    };
+    window.addEventListener("crunch:tour-mobile-panel", handler);
+    return () => window.removeEventListener("crunch:tour-mobile-panel", handler);
+  }, []);
+
   useEffect(() => {
     if (selectedFiles.length > 0) {
       setSearchParams(prev => {
@@ -210,22 +220,26 @@ const Index = () => {
           /* ─── Desktop: original grid layout ─── */
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             <motion.aside className="lg:col-span-4 space-y-6" variants={itemVariants}>
-              <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }}>
+              <motion.div whileHover={{ scale: 1.01 }} transition={{ duration: 0.2 }} data-tour="upload">
                 <UploadPanel onComplete={() => refetchCols()} />
               </motion.div>
               <motion.div className="glass-card liquid-scale rounded-md p-4" whileHover={{ scale: 1.005 }} transition={{ duration: 0.2 }}>
                 <div className="space-y-4">
-                  <FileMultiSelect selectedFiles={selectedFiles} onSelectionChange={setSelectedFiles} />
+                  <div data-tour="file-select">
+                    <FileMultiSelect selectedFiles={selectedFiles} onSelectionChange={setSelectedFiles} />
+                  </div>
                   <Separator />
-                  <FiltersPanel
-                    columns={columns}
-                    filters={filters}
-                    selectedFiles={selectedFiles}
-                    setFilters={setFilters}
-                    onApply={apply}
-                    onClearAll={clear}
-                    refreshKey={refreshKey}
-                  />
+                  <div data-tour="filters">
+                    <FiltersPanel
+                      columns={columns}
+                      filters={filters}
+                      selectedFiles={selectedFiles}
+                      setFilters={setFilters}
+                      onApply={apply}
+                      onClearAll={clear}
+                      refreshKey={refreshKey}
+                    />
+                  </div>
                 </div>
               </motion.div>
             </motion.aside>
