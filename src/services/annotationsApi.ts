@@ -1,11 +1,5 @@
-import { collabFetch as _f } from "./_collabInternals";
 import { CollabApiError } from "./collabApi";
-
-// Re-export internal collabFetch via a thin module to avoid duplication;
-// instead annotationsApi piggybacks on the existing collabApi infrastructure.
-// We expose annotationsApi separately for clarity per the plan.
-import { getAccessToken, getRefreshToken, setTokens, isAccessTokenExpired } from "./tokenManager";
-import { refreshToken as refreshTokenApi } from "./authApi";
+// annotationsApi mirrors collabApi's error parsing for the new { error: { code, message } } shape.
 
 const BASE = "https://demoapi.crunchy.sigmoidsolutions.io";
 
