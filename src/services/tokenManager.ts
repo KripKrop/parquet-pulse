@@ -67,13 +67,24 @@ export function isAccessTokenExpired(): boolean {
   return isTokenExpired(token);
 }
 
+/**
+ * Hydrate a partial User from the access token claims.
+ * Backend may include name/avatar_url/color in the JWT; if not, /me/profile fills the gap.
+ * Color is server-owned and must NOT be recomputed if absent — pass through as-is.
+ */
 export function getUserFromToken(): User | null {
   const decoded = decodeAccessToken();
   if (!decoded) return null;
   
   return {
+    user_id: decoded.sub,
     id: decoded.sub,
     email: decoded.email,
+    name: decoded.name ?? decoded.email.split("@")[0],
+    avatar_url: decoded.avatar_url ?? null,
+    color: decoded.color ?? "",
+    has_taken_tour: decoded.has_taken_tour,
+    tour_completed: decoded.has_taken_tour,
   };
 }
 
