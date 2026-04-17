@@ -194,7 +194,9 @@ const Index = () => {
                 CSV Data
               </h1>
               <div className="flex items-center gap-2">
-                <DownloadCsv filters={filters} fields={columns} />
+                <span data-tour="export">
+                  <DownloadCsv filters={filters} fields={columns} />
+                </span>
                 <BulkDeleteDialog
                   filters={filters}
                   onDeleted={() => {
