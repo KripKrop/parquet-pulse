@@ -1,99 +1,100 @@
 
 
-# Implementation Plan: Responsive Mobile Layout
+# Onboarding Tour — Refined with Detailed Step Content
 
-## Overview
+Refining the previously approved plan with much richer step content. Architecture, components, API integration, and file list remain identical to the prior plan — only the **step copy, targeting, and per-step behavior** are expanded below.
 
-Three mobile-specific enhancements for screens < 768px, using the existing `useIsMobile()` hook. Desktop layout remains completely unchanged.
+## Expanded Tour Steps (8 total, was 5)
 
-## Current State
+Each step now has: a clear **title**, a **2–3 sentence description** that teaches *what it does + why it matters + a concrete tip*, an **icon**, a **target selector**, **placement preference**, and any **per-step side effects** (e.g. auto-open a drawer so the highlighted element is actually visible).
 
-- **AppHeader**: Horizontal nav bar with nav links + user info. No hamburger menu -- everything overflows on small screens.
-- **Index page**: 12-column grid with a 4-col sidebar (Upload + FileMultiSelect + FiltersPanel) and 8-col main area (DataTable). On mobile this stacks vertically but takes up massive space.
-- **Files page**: Full table with 7 columns (checkbox, file, uploaded, size, rows, status, actions). Unusable on narrow screens.
-- **Existing**: `useIsMobile()` hook (768px breakpoint), `Sheet` component, `Drawer` component (vaul-based bottom drawer).
+| # | Step | Target | Placement | Side Effect |
+|---|------|--------|-----------|-------------|
+| 1 | **Welcome** | centered modal | center | none |
+| 2 | **Upload your data** | `[data-tour="upload"]` | right (desktop) / top (mobile, opens Upload drawer) | mobile: open upload drawer |
+| 3 | **Browse your files** | `[data-tour="files-nav"]` (Files nav link) | bottom | none |
+| 4 | **Filter across files** | `[data-tour="file-select"]` | right / top | mobile: open filters drawer |
+| 5 | **Slice by column** | `[data-tour="filters"]` | right / top | keep filters drawer open on mobile |
+| 6 | **Customize columns** | `[data-tour="columns"]` (ColumnSettings button) | bottom-left | none |
+| 7 | **Ask the AI** | `[data-tour="ai"]` (AI nav link) | bottom | none |
+| 8 | **Export to CSV** | `[data-tour="export"]` (DownloadCsv button) | bottom-left | none |
+| 9 | **You're ready** | centered modal | center | calls `/me/tour-complete` |
 
-## Feature 1: Collapsible Mobile Header/Navigation
+### Detailed step copy
 
-**Problem**: The nav bar shows all links + tenant info + user email horizontally. On mobile it overflows.
+**Step 1 — Welcome to Crunchy** (icon: `Sparkles`)
+> "Crunchy turns your CSVs into an explorable dataset. In 90 seconds, we'll show you how to upload data, filter it, query it with AI, and export results. You can skip anytime — replay this tour from Settings."
+> Buttons: `Skip` · `Start tour` (primary)
 
-**Solution**: On mobile, collapse the nav into a hamburger menu using the existing `Sheet` component (slides from left).
+**Step 2 — Upload your data** (icon: `Upload`)
+> "Drag and drop a CSV here, or click to browse. Files up to **1.5 GB** are split into 5 MB chunks and uploaded in the background — you can keep working while they process. Each upload becomes a queryable file in your dataset."
+> Tip chip: *"Tip: uploads survive page refreshes."*
 
-**Changes to `src/components/layout/AppHeader.tsx`**:
-- Import `useIsMobile`, `Sheet`, `SheetContent`, `SheetTrigger`, `Menu` icon
-- Desktop (>768px): render current nav as-is
-- Mobile (<768px): 
-  - Show logo + hamburger icon (`Menu`) + compact user badge
-  - `Sheet` opens from the left with vertical nav links, AI status badge, tenant name, email, and logout button
-  - Each nav link closes the sheet on click via `onOpenChange`
+**Step 3 — Browse your files** (icon: `FolderOpen`)
+> "The Files page lists every CSV in your tenant. Sort by name, date, size, or row count, search by filename, and select multiple files to bulk-delete, export metadata, or compare two schemas side by side."
 
-## Feature 2: Bottom Sheet for Filters (Index Page)
+**Step 4 — Filter across files** (icon: `Files`)
+> "Pick which uploaded files contribute to the current view. Selecting two or more files lets you query them as one merged dataset — useful when monthly exports share the same schema."
 
-**Problem**: The sidebar (Upload + Filters) takes up the entire screen width on mobile before the user even sees data.
+**Step 5 — Slice by column** (icon: `Filter`)
+> "Add filters on any column: ranges for numbers and dates, multi-select for categories, free text for strings. All filters sync to the URL, so you can bookmark or share an exact view of your data."
+> Tip chip: *"Tip: filters update the table and AI context together."*
 
-**Solution**: On mobile, hide the sidebar and show a sticky bottom bar with action buttons that open bottom sheets (using the existing `Drawer` component from vaul).
+**Step 6 — Customize columns** (icon: `Columns3`)
+> "Show, hide, reorder, and pin columns. Your layout is saved per-dataset, so the table looks the way you want every time you return."
 
-**Changes to `src/pages/Index.tsx`**:
-- Import `useIsMobile`, `Drawer`, `DrawerContent`, `DrawerHeader`, `DrawerTitle`
-- Add state: `mobilePanel: "upload" | "filters" | null`
-- Desktop: render current grid layout unchanged
-- Mobile:
-  - Hide `<aside>` entirely
-  - Show `DataTable` full-width
-  - Render a sticky bottom bar (`fixed bottom-0 left-0 right-0 z-40`) with 3-4 icon buttons: Upload, Filters, Files, Column Settings
-  - Each button opens a `Drawer` (bottom sheet) containing the respective panel
-  - Filter bottom sheet contains `FileMultiSelect` + `FiltersPanel`
-  - Upload bottom sheet contains `UploadPanel`
-  - Column settings bottom sheet contains `ColumnSettings` (rendered as inline content instead of popover on mobile)
-  - Bottom bar styled with glassmorphism to match existing aesthetic
-  - Add `pb-16` to main content to prevent the fixed bar from covering content
+**Step 7 — Ask the AI** (icon: `Sparkles`)
+> "Ask questions in plain English — *'top 10 customers by revenue this quarter'* or *'what changed between March and April?'*. The AI uses your current filters as context and can return narrative answers or live tables you can drill into."
+> Warning chip (only if AI index stale): *"Rebuild the index after large uploads."*
 
-## Feature 3: Swipeable File Cards (Files Page)
+**Step 8 — Export to CSV** (icon: `Download`)
+> "Download the current filtered view as a CSV. Large exports run in the background — a floating widget shows progress, and you can keep filtering or start a new export while it's working."
 
-**Problem**: The 7-column file table is unreadable on mobile. Rows are too wide.
+**Step 9 — You're all set 🎉** (icon: `CheckCircle2`)
+> "That's the tour. You can replay it anytime from **Settings → Replay onboarding tour**. Now upload your first file and start exploring."
+> Buttons: `Finish` (primary, triggers confetti + API call)
 
-**Solution**: On mobile, replace the table with a card-based layout. Each file renders as a compact card showing key info, with swipe-to-reveal actions.
+## Per-step behavior added
 
-**Changes to `src/pages/Files.tsx`**:
-- Import `useIsMobile`
-- Desktop: render current `Table` unchanged
-- Mobile: render a vertical list of cards instead of `<Table>`
-  - Each card shows: filename (bold), file type badge, relative upload time, size, row count
-  - Tap card to open `FileDetailsDrawer`
-  - Checkbox overlay in top-left corner for multi-select
-  - Quick action buttons (filter, delete) visible below the metadata
-  - Cards use the existing `glass-card` styling
+- **`onEnter` hook per step**: each step config can declare `onEnter()` to open a drawer, navigate, or scroll. Mobile steps 2/4/5 use this to auto-open the relevant bottom-sheet drawer so the highlighted target is actually visible.
+- **`onExit` hook**: closes drawers opened by the tour when moving forward (unless next step needs it).
+- **Tip chips**: optional `tip` field in step config renders below description as a `Badge variant="outline"` with `Lightbulb` icon — only when present.
+- **Warning chips**: conditional, e.g. step 7 reads AIContext for `indexStale` and shows a warning chip.
+- **Per-step icon**: rendered in tooltip header as a small gradient-bg circle — visually anchors each step.
 
-**New component `src/components/files/FileCard.tsx`**:
-- Props: `file`, `selected`, `onToggleSelect`, `onView`, `onFilter`, `onDelete`, `onCopy`
-- Renders a compact card with file info and action buttons
-- Touch-optimized tap targets (min 44px)
+## Step config shape (in `OnboardingTour.tsx`)
 
-## Files Summary
+```ts
+type TourStep = {
+  id: string;
+  title: string;
+  description: string;
+  icon: LucideIcon;
+  selector?: string;          // omit for centered modal
+  placement?: "top" | "bottom" | "left" | "right" | "center";
+  tip?: string;
+  onEnter?: (ctx: TourCtx) => void | Promise<void>;
+  onExit?: (ctx: TourCtx) => void;
+  mobileSelector?: string;    // override target on mobile
+};
+```
 
-| File | Action | Changes |
-|------|--------|---------|
-| `src/components/layout/AppHeader.tsx` | Modify | Hamburger menu with Sheet on mobile |
-| `src/pages/Index.tsx` | Modify | Bottom sheet drawers for filters/upload on mobile, sticky bottom bar |
-| `src/pages/Files.tsx` | Modify | Card layout on mobile instead of table |
-| `src/components/files/FileCard.tsx` | Create | Mobile file card component |
+## Files Summary (unchanged from prior plan)
 
-No new dependencies. Uses existing `Sheet`, `Drawer`, `useIsMobile()`.
+| File | Action |
+|------|--------|
+| `src/contexts/TourContext.tsx` | Create |
+| `src/components/onboarding/OnboardingTour.tsx` | Create (with 9-step config) |
+| `src/components/onboarding/TourSpotlight.tsx` | Create |
+| `src/components/onboarding/TourTooltip.tsx` | Create (now renders icon + tip chip) |
+| `src/components/onboarding/TourProgress.tsx` | Create |
+| `src/services/userApi.ts` | Create |
+| `src/types/auth.ts` | Modify |
+| `src/contexts/AuthContext.tsx` | Modify |
+| `src/App.tsx` | Modify |
+| `src/pages/Index.tsx` | Modify (add `data-tour` on upload, file-select, filters, columns, export) |
+| `src/components/layout/AppHeader.tsx` | Modify (add `data-tour="ai"` and `data-tour="files-nav"`) |
+| `src/pages/Settings.tsx` | Modify (Replay tour button) |
 
-## Implementation Order
-
-1. Update `AppHeader` with mobile hamburger menu
-2. Create `FileCard` component
-3. Update `Files.tsx` with mobile card layout
-4. Update `Index.tsx` with bottom sheet filters and sticky bottom bar
-
-## Technical Details
-
-**Bottom bar z-index**: `z-40` (below header at `z-50`, above content). The floating upload/download widgets are bottom-right -- the bottom bar will account for them with appropriate spacing.
-
-**Drawer snap points**: The filter drawer will use `snapPoints={[0.5, 0.85]}` so users can half-open or full-open the filter panel. Upload drawer uses a fixed height.
-
-**No horizontal swipe gestures**: After reviewing complexity vs. value, file cards will use visible action buttons instead of swipe-to-reveal. This avoids conflicts with page scroll and is more discoverable. The cards themselves are "swipeable" in the sense that the card list is vertically scrollable with momentum -- matching native mobile UX.
-
-**Responsive breakpoint**: All checks use `useIsMobile()` (768px). Between 768-1024px the existing responsive grid (`lg:grid-cols-12`) already handles the layout adequately.
+Everything else (visual design, spotlight animation, glass-card tooltip, confetti finish, accessibility, edge cases, z-index hierarchy, persistence) stays exactly as previously approved.
 
