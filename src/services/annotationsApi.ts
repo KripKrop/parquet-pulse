@@ -1,4 +1,6 @@
 import { CollabApiError } from "./collabApi";
+import { getAccessToken, getRefreshToken, setTokens, isAccessTokenExpired } from "./tokenManager";
+import { refreshToken as refreshTokenApi } from "./authApi";
 // annotationsApi mirrors collabApi's error parsing for the new { error: { code, message } } shape.
 
 const BASE = "https://demoapi.crunchy.sigmoidsolutions.io";
