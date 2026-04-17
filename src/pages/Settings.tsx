@@ -7,13 +7,21 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "@/hooks/use-toast";
 import { request } from "@/services/apiClient";
-import { Building2, User, Shield } from "lucide-react";
+import { Building2, User, Shield, Sparkles } from "lucide-react";
 import { motion } from "framer-motion";
+import { useTour, resetTourLocal } from "@/contexts/TourContext";
 
 export default function Settings() {
   const [deleteConfirm, setDeleteConfirm] = useState("");
   const navigate = useNavigate();
   const { isAuthenticated, user, tenant, role } = useAuth();
+  const { start: startTour } = useTour();
+
+  const handleReplayTour = () => {
+    resetTourLocal();
+    navigate("/");
+    setTimeout(() => startTour(), 350);
+  };
 
   const handleClearData = async () => {
     if (deleteConfirm !== "DELETE ALL") {
