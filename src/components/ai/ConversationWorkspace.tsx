@@ -401,6 +401,43 @@ function ConversationItem({ item }: { item: ConversationItemType }) {
     });
   };
 
+  const handlePinToView = async () => {
+    if (!response.answer_id) {
+      toast({ title: "Cannot pin", description: "This answer has no answer_id", variant: "destructive" });
+      return;
+    }
+    try {
+      await annotationsApi.create({
+        answer_id: response.answer_id,
+        anchor: {
+          kind: "view",
+          route: "/",
+          view_state: normalizeViewState({ filters: response.applied_filters || {} }),
+        },
+      });
+      toast({ title: "Pinned to view", description: "Teammates landing on this filter will see this insight" });
+    } catch (e: any) {
+      toast({ title: "Pin failed", description: e?.message ?? "Try again", variant: "destructive" });
+    }
+  };
+
+  const firstRowMeta = response.rows?.[0]?._meta;
+  const handlePinToRow = async () => {
+    if (!response.answer_id || !firstRowMeta) {
+      toast({ title: "Cannot pin to row", description: "Need an answer_id and a row with _meta", variant: "destructive" });
+      return;
+    }
+    try {
+      await annotationsApi.create({
+        answer_id: response.answer_id,
+        anchor: { kind: "row", file_id: firstRowMeta.file_id, row_hash: firstRowMeta.row_hash },
+      });
+      toast({ title: "Pinned to row", description: "Teammates opening this row will see this insight" });
+    } catch (e: any) {
+      toast({ title: "Pin failed", description: e?.message ?? "Try again", variant: "destructive" });
+    }
+  };
+
   if (response.error) {
     return (
       <div className="space-y-2">
